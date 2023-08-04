@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: verticalscaletozero-operator
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: verticalscaletozero-operator
+  labels:
+    app: verticalscaletozero-operator
+spec:
+  replicas: 1 # make sure to not have more than one replicas
+  strategy:
+    type: Recreate # make sure the old pod is being killed before the new pod is being created
+  selector:
+    matchLabels:
+      app: verticalscaletozero-operator
+  template:
+    metadata:
+      labels:
+        app: verticalscaletozero-operator
+    spec:
+      serviceAccountName: verticalscaletozero-operator
+      containers:
+      - name: verticalscaletozero-operator
+        image: quintero98/verticalscaletozero-operator
+        imagePullPolicy: IfNotPresent
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: verticalscaletozero-operator
+rules:
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["*"] # ["create, patch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create"]
+- apiGroups: ["operators.brennerm.github.io"]
+  resources: ["verticalscaletozero"]
+  verbs: ["*"]
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: verticalscaletozero-operator
+subjects:
+- kind: ServiceAccount
+  name: verticalscaletozero-operator
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: verticalscaletozero-operator
+  apiGroup: rbac.authorization.k8s.io
