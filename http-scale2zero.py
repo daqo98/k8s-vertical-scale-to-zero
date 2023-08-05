@@ -2,12 +2,13 @@ import socket
 import select
 import time
 import sys
+from verticalscale_operator import *
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
 buffer_size = 4096
 delay = 0.0001
-forward_to = ('localhost', 8080) # Find port number of the service !!!!!!!!!!
+forward_to = ('localhost', getContainersPort()) # Find port number of the service !!!!!!!!!!
 
 
 class Forward:
@@ -61,6 +62,8 @@ class TheServer:
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
+            verticalScale(5, 5, 5, 5)
+            print("App container resources modified")
         else:
             print("Can't establish connection with remote server.", end=' ')
             print("Closing connection with client side", clientaddr)
@@ -88,7 +91,7 @@ class TheServer:
 
 
 if __name__ == '__main__':
-    server = TheServer('localhost', 80) # Find IP Addr of the service, so any request to that service comes here !!!!!!!!!!
+    server = TheServer('0.0.0.0', 80) # Socket of the Proxy server !!!!!!!!!!
     try:
         server.main_loop() # loop para vertical from 0, wait for request and forward (hace falta otro loop para vertical to 0) !!!!!!!!!!
     except KeyboardInterrupt:

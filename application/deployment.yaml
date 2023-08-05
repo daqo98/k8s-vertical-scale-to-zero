@@ -12,6 +12,7 @@ spec:
       labels:
         app: prime-numbers
     spec:
+      serviceAccountName: pod-controller-sa
       containers:
         - name: prime-numbers
           image: systemautoscaler/prime-numbers:dev
@@ -25,3 +26,15 @@ spec:
             limits:
               memory: 128Mi
               cpu: 250m
+        - name: proxy-vertical-scaling
+          image: quintero98/proxy-vertical-scaling:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: 200Mi
+              cpu: 500m
+            limits:
+              memory: 200Mi
+              cpu: 500m
