@@ -38,9 +38,9 @@ class TheServer:
 
     def main_loop(self):
         self.input_list.append(self.server)
+        newTimer()
+        t.start()
         while 1:
-            newTimer()
-            t.start()
             time.sleep(delay)
             ss = select.select
             inputready, outputready, exceptready = ss(self.input_list, [], [])
