@@ -3,14 +3,14 @@ import select
 import time
 import sys
 from verticalscale_operator import *
-import threading as th
+from threading import Timer
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
 buffer_size = 4096
 delay = 0.0001
 forward_to = ('localhost', getContainersPort()) # Find port number of the service !!!!!!!!!!
-time = 40.0 # Timer to zero 
+TIME = 15.0 # Timer to zero 
 
 class Forward:
     def __init__(self):
@@ -36,16 +36,26 @@ class TheServer:
         self.server.bind((host, port))
         self.server.listen(200)
 
+    def to_zero(self):
+        verticalScale(5, 5, 5, 5) # CHECK THE TO_0
+
+    def newTimer(self):
+        global t
+        t = Timer(TIME,self.to_zero)
+
     def main_loop(self):
         self.input_list.append(self.server)
+        self.newTimer()
+        t.start()
         while 1:
-            newTimer()
-            t.start()
             time.sleep(delay)
             ss = select.select
             inputready, outputready, exceptready = ss(self.input_list, [], [])
             for self.s in inputready:
                 if self.s == self.server:
+                    t.cancel()
+                    self.newTimer()
+                    t.start()
                     self.on_accept()
                     break
 
@@ -65,7 +75,7 @@ class TheServer:
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
-            verticalScale(5, 5, 5, 5)
+            verticalScale(10, 10, 10, 10)
             print("App container resources modified")
         else:
             print("Can't establish connection with remote server.", end=' ')
@@ -88,17 +98,10 @@ class TheServer:
 
     def on_recv(self):
         data = self.data
-        t.cancel()
-        newTimer()
         print(data)
         self.channel[self.s].send(data)
       
-    def to_zero(self):
-      verticalScale(0.001, 0.001, 0.001, 0.001) # CHECK THE TO_0
     
-    def newTimer(self):
-        global t
-        t = Timer(time,to_zero)
 
 if __name__ == '__main__':
     server = TheServer('0.0.0.0', 80) # Socket of the Proxy server !!!!!!!!!!
