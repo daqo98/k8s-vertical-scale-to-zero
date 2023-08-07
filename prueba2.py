@@ -39,13 +39,14 @@ class TheServer:
 
     def vscale_to_zero(self):
         print(self.separator)
-        verticalScale(1, 1, 1, 1)
+        verticalScale("1m", "1m", "1Mi", "1Mi")
         print("Vertical scale to zero")
         print(self.separator)
 
     def vscale_from_zero(self):
         print(self.separator)
-        verticalScale(10, 10, 10, 10) #TODO: These values vary depending the min resources required by the app
+        [cpu_req, cpu_lim, mem_req, mem_lim] = getDefaultConfigContainer()
+        verticalScale(cpu_req, cpu_lim, mem_req, mem_lim)
         print("Vertical scale from zero")
         print(self.separator)
 
