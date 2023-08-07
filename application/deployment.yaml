@@ -19,6 +19,11 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          resizePolicy:
+            - resourceName: cpu
+              restartPolicy: RestartContainer
+            - resourceName: memory
+              restartPolicy: RestartContainer
           resources:
             requests:
               memory: 128Mi

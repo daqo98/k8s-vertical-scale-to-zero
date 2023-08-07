@@ -46,8 +46,9 @@ def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     podName = api_instance.list_namespaced_pod(namespace="default", pretty=pretty).items[0].metadata.name
     pod = api_instance.read_namespaced_pod_status(name=podName, namespace="default", pretty=pretty)
     new_data = modifyContainerResources(pod, cpu_req, cpu_lim, mem_req, mem_lim)
-    pprint(new_data)
+    #pprint(new_data)
     update_resources_pod(namespace,podName,new_data)
+    print("New resources: cpu_req: %sm, cpu_lim: %sm, mem_req: %sMi, and mem_lim: %sMi" % (cpu_req, cpu_lim, mem_req, mem_lim))
 
 def getContainersPort():
     namespace = "default"
@@ -57,4 +58,10 @@ def getContainersPort():
     print("Container port is: " + str(port))
     return port
 
-#verticalScale(2, 2, 2, 2)
+def deletePod():
+    namespace = "default"
+    podName = api_instance.list_namespaced_pod(namespace="default", pretty=pretty).items[0].metadata.name
+    pod = api_instance.delete_namespaced_pod(name=podName, namespace="default", body=k8s_client.V1DeleteOptions(), pretty=pretty)
+
+#verticalScale(5, 5, 5, 5)
+#verticalScale(1, 1, 1, 1)

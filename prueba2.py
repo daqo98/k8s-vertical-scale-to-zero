@@ -10,7 +10,8 @@ from threading import Timer
 buffer_size = 4096
 delay = 0.0001
 forward_to = ('localhost', getContainersPort()) # Find port number of the service !!!!!!!!!!
-TIME = 15.0 # Timer to zero 
+TIME = 30.0 # Timer to zero
+inZero = False # TODO: Create a new func n verticalscale_operator.py to check whether resources are in 0
 
 class Forward:
     def __init__(self):
@@ -24,7 +25,6 @@ class Forward:
             print(e)
             return False
 
-
 class TheServer:
     input_list = []
     channel = {}
@@ -35,39 +35,47 @@ class TheServer:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(200)
+        
 
     def to_zero(self):
-        verticalScale(5, 5, 5, 5) # CHECK THE TO_0
+        verticalScale(1, 1, 1, 1) # CHECK THE TO_0
+        inZero = True
 
-    def newTimer(self):
-        global t
-        t = Timer(TIME,self.to_zero)
+    def create_timer(self):
+        return Timer(TIME,self.to_zero)
 
     def main_loop(self):
         self.input_list.append(self.server)
-        self.newTimer()
-        t.start()
+        self.t = self.create_timer()
+        self.t.start()
         while 1:
             time.sleep(delay)
             ss = select.select
             inputready, outputready, exceptready = ss(self.input_list, [], [])
             for self.s in inputready:
                 if self.s == self.server:
-                    t.cancel()
-                    self.newTimer()
-                    t.start()
+                    self.t.cancel()
+                    self.t = self.create_timer()
+                    self.t.start()
+                    #deletePod()
+                    verticalScale(10, 10, 10, 10)
+                    print("App container resources modified")
+                    time.sleep(10) # Attempt to give some time to update container resources
                     self.on_accept()
                     break
 
                 self.data = self.s.recv(buffer_size)
                 if len(self.data) == 0:
+                    print("Buffer LEN = 0")
                     self.on_close()
                     break
                 else:
                     self.on_recv()
 
     def on_accept(self):
+        print("HOLA")
         forward = Forward().start(forward_to[0], forward_to[1])
+        print("CHAO")
         clientsock, clientaddr = self.server.accept()
         if forward:
             print(clientaddr, "has connected")
@@ -75,8 +83,6 @@ class TheServer:
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
-            verticalScale(10, 10, 10, 10)
-            print("App container resources modified")
         else:
             print("Can't establish connection with remote server.", end=' ')
             print("Closing connection with client side", clientaddr)
@@ -101,8 +107,6 @@ class TheServer:
         print(data)
         self.channel[self.s].send(data)
       
-    
-
 if __name__ == '__main__':
     server = TheServer('0.0.0.0', 80) # Socket of the Proxy server !!!!!!!!!!
     try:
