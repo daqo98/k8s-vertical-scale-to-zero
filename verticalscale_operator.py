@@ -41,31 +41,32 @@ def modifyContainerResources(pod, cpu_req, cpu_lim, mem_req, mem_lim):
                                                      'memory': '%sMi' % mem_req}}
     return pod
 
+def getPod():
+    return api_instance.list_namespaced_pod(namespace="default", pretty=pretty).items[0]
+
 def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
-    namespace = "default" # TODO: Check if actually needed
-    podName = api_instance.list_namespaced_pod(namespace=namespace, pretty=pretty).items[0].metadata.name
-    pod = api_instance.read_namespaced_pod_status(name=podName, namespace=namespace, pretty=pretty)
+    pod = getPod()
+    namespace = pod.metadata.namespace
+    pod_name = pod.metadata.name
     new_data = modifyContainerResources(pod, cpu_req, cpu_lim, mem_req, mem_lim)
     #pprint(new_data)
-    update_resources_pod(namespace,podName,new_data)
+    update_resources_pod(namespace,pod_name,new_data)
     print("App container resources modified")
     print("New resources: cpu_req: %sm, cpu_lim: %sm, mem_req: %sMi, and mem_lim: %sMi" % (cpu_req, cpu_lim, mem_req, mem_lim))
 
 def getContainersPort():
-    namespace = "default" # TODO: Check if actually needed
-    podName = api_instance.list_namespaced_pod(namespace=namespace, pretty=pretty).items[0].metadata.name
-    pod = api_instance.read_namespaced_pod_status(name=podName, namespace=namespace, pretty=pretty)
+    pod = getPod()
     port = pod.spec.containers[0].ports[0].container_port
     print("Container port is: " + str(port))
     return port
 
 def deletePod():
-    namespace = "default" # TODO: Check if actually needed
-    podName = api_instance.list_namespaced_pod(namespace=namespace, pretty=pretty).items[0].metadata.name
-    pod = api_instance.delete_namespaced_pod(name=podName, namespace=namespace, body=k8s_client.V1DeleteOptions(), pretty=pretty)
+    pod = getPod()
+    podName = pod.metadata.name
+    api_instance.delete_namespaced_pod(name=podName, namespace="default", body=k8s_client.V1DeleteOptions(), pretty=pretty)
 
 def getContainerResources():
-    pod = api_instance.list_namespaced_pod(namespace="default", pretty=pretty).items[0]
+    pod = getPod()
     cpu_req = pod.spec.containers[0].resources.requests['cpu']
     cpu_lim = pod.spec.containers[0].resources.limits['cpu']
     mem_req = pod.spec.containers[0].resources.requests['memory']
@@ -77,11 +78,19 @@ def getContainerResources():
 def verifyInZeroState():
     [cpu_req, cpu_lim, mem_req, mem_lim] = getContainerResources()
     if (cpu_req =='1m' and cpu_lim == '1m' and mem_req == '1Mi' and mem_lim == "1Mi"):
-        print("inZero")
+        print("in Zero state")
         return True
     else: 
-        print("NOT inZero")
+        print("NOT in Zero state")
         return False
+
+def isContainerReady():
+    pod = getPod()
+    return pod.status.container_statuses[0].ready
+
+
+""" def getDefaultConfigContainer():
+    api_instance = k8s_client.AppsV1Api() """
 
 
 #verticalScale(10, 10, 10, 10)
@@ -89,4 +98,6 @@ def verifyInZeroState():
 
 #verifyInZeroState()
 
-#pprint(api_instance.list_namespaced_pod(namespace="default", pretty=pretty).items[0])
+#pprint(api_instance.list_namespaced_pod(namespace="default", pretty=pretty).items[0]) # Pod's info
+#print(isContainerReady())
+

@@ -27,6 +27,8 @@ class Forward:
 class TheServer:
     input_list = []
     channel = {}
+    waiting_time_interval = 5 # in seconds
+    separator = "____________________________________________________________________________________________________"
 
     def __init__(self, host, port):
         self.s = None
@@ -34,19 +36,29 @@ class TheServer:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(200)
-        
 
-    def to_zero(self):
-        verticalScale(1, 1, 1, 1) # CHECK THE TO_0
+    def vscale_to_zero(self):
+        print(self.separator)
+        verticalScale(1, 1, 1, 1)
         print("Vertical scale to zero")
+        print(self.separator)
+
+    def vscale_from_zero(self):
+        print(self.separator)
+        verticalScale(10, 10, 10, 10) #TODO: These values vary depending the min resources required by the app
+        print("Vertical scale from zero")
+        print(self.separator)
 
     def create_timer(self):
-        return Timer(TIME,self.to_zero)
+        return Timer(TIME,self.vscale_to_zero)
+
+    def create_and_start_timer(self):
+        self.t = self.create_timer()
+        self.t.start()
 
     def main_loop(self):
         self.input_list.append(self.server)
-        self.t = self.create_timer()
-        self.t.start()
+        self.create_and_start_timer()
         while 1:
             time.sleep(delay)
             ss = select.select
@@ -54,30 +66,31 @@ class TheServer:
             for self.s in inputready:
                 if self.s == self.server:
                     self.t.cancel()
-                    self.t = self.create_timer()
-                    self.t.start()
-                    #deletePod()
+                    self.create_and_start_timer()
                     if verifyInZeroState():
-                        verticalScale(10, 10, 10, 10)
-                        print("Vertical scale from zero")
-                        time.sleep(20) # Attempt to give some time to update container resources
+                        self.t.cancel()
+                        self.vscale_from_zero()
+                        ctr = 0
+                        while isContainerReady() == False:
+                            ctr = ctr+1
+                            print("Cycle of %s secs #: %s" % (self.waiting_time_interval, ctr))
+                            time.sleep(self.waiting_time_interval) # Attempt to give some time to update container resources
+                        self.create_and_start_timer()
                     self.on_accept()
                     break
 
                 self.data = self.s.recv(buffer_size)
                 if len(self.data) == 0:
-                    print("Buffer LEN = 0")
                     self.on_close()
                     break
                 else:
                     self.on_recv()
 
     def on_accept(self):
-        print("HOLA")
         forward = Forward().start(forward_to[0], forward_to[1])
-        print("CHAO")
         clientsock, clientaddr = self.server.accept()
         if forward:
+            print(self.separator)
             print(clientaddr, "has connected")
             self.input_list.append(clientsock)
             self.input_list.append(forward)
@@ -90,6 +103,7 @@ class TheServer:
 
     def on_close(self):
         print(self.s.getpeername(), "has disconnected")
+        print(self.separator)
         # remove objects from input_list
         self.input_list.remove(self.s)
         self.input_list.remove(self.channel[self.s])
@@ -108,9 +122,9 @@ class TheServer:
         self.channel[self.s].send(data)
       
 if __name__ == '__main__':
-    server = TheServer('0.0.0.0', 80) # Socket of the Proxy server !!!!!!!!!!
+    server = TheServer('0.0.0.0', 80) # Socket of the Proxy server
     try:
-        server.main_loop() # loop para vertical from 0, wait for request and forward (hace falta otro loop para vertical to 0) !!!!!!!!!!
+        server.main_loop()
     except KeyboardInterrupt:
         print("Ctrl C - Stopping server")
         sys.exit(1)
