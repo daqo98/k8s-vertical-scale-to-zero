@@ -11,7 +11,6 @@ buffer_size = 4096
 delay = 0.0001
 forward_to = ('localhost', getContainersPort()) # Find port number of the service !!!!!!!!!!
 TIME = 30.0 # Timer to zero
-inZero = False # TODO: Create a new func n verticalscale_operator.py to check whether resources are in 0
 
 class Forward:
     def __init__(self):
@@ -39,7 +38,7 @@ class TheServer:
 
     def to_zero(self):
         verticalScale(1, 1, 1, 1) # CHECK THE TO_0
-        inZero = True
+        print("Vertical scale to zero")
 
     def create_timer(self):
         return Timer(TIME,self.to_zero)
@@ -58,9 +57,10 @@ class TheServer:
                     self.t = self.create_timer()
                     self.t.start()
                     #deletePod()
-                    verticalScale(10, 10, 10, 10)
-                    print("App container resources modified")
-                    time.sleep(10) # Attempt to give some time to update container resources
+                    if verifyInZeroState():
+                        verticalScale(10, 10, 10, 10)
+                        print("Vertical scale from zero")
+                        time.sleep(20) # Attempt to give some time to update container resources
                     self.on_accept()
                     break
 
