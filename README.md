@@ -23,7 +23,7 @@ Let's use the `pipenv` module to create a virtual environment, so first install 
 3. [K8s Core API](https://github.com/salsify/k8s-python/blob/master/kubernetes/docs/CoreV1Api.md)
 4. [K8s Apps API](https://github.com/salsify/k8s-python/blob/master/kubernetes/docs/AppsV1Api.md)
 
-**Vertical scaling-related info**
+### Vertical scaling-related info
 5. [Container restart policy](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy)
 6. [Resize CPU and Memory Resources assigned to Containers](https://kubernetes.io/docs/tasks/configure-pod-container/resize-container-resources/)
 7. [Kubernetes 1.27: In-place Resource Resize for Kubernetes Pods (alpha)](https://kubernetes.io/blog/2023/05/12/in-place-pod-resize-alpha/)
