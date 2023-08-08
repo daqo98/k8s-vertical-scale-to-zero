@@ -32,4 +32,4 @@ COPY . .
 EXPOSE 80
 
 # Run the application
-ENTRYPOINT ["python", "./http_scale2zero.py"]
+ENTRYPOINT ["python", "./proxy_scale2zero.py"]
