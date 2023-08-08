@@ -1,5 +1,14 @@
-# k8s-vertical-scale-to-zero
+![imagen](https://github.com/daqo98/k8s-vertical-scale-to-zero/assets/68958822/4cb7ae72-ec96-4fe2-95d1-c1caca4b9419)# k8s-vertical-scale-to-zero
 Sidecar proxy with vertical scaling to/from zero in Kubernetes implemented in Python. By making use of the sidecar pattern, we will deploy an app and a proxy in two different containers but in the same pod. The requests directed to the pod will be received by the proxy which in turn forwards them to the app but also decides whether to vertical scale the pod or not.
+
+## Logic behind the proxy w/ vertical scaling:
+- **Vertical scaling to zero:** The container resources are downscaled to zero if more than X seconds have elapsed since the last request was forwarded to the app (e.g. prime-numbers). This time is fixed in the `TIME` variable (currently hardcoded).
+- **Vertical scaling from zero:** Infinite loop (a while) that resizes the container and every 5 seconds checks if the container is ready before forwarding the request to the prime-numbers app.
+
+## Pre-requisites
+It is required to have Kubectl v1.27 and a recent version of Kind installed. Personally, I'm using:
+- kind v0.17.0 go1.19.2 windows/amd64
+- kubectl client version v1.27.4 windows/amd64
 
 ## How to test it in Kubernetes?
  1. Create the Kubernetes cluster: `kind create cluster --name k8s-playground --image=kindest/node:v1.27.3 --config "config/cluster-conf/development-cluster.yaml"`
@@ -8,7 +17,8 @@ Sidecar proxy with vertical scaling to/from zero in Kubernetes implemented in Py
  4. Create service of the app: `kubectl apply -f application/service.yaml`
  5. Port-forwarding to service port: `kubectl port-forward service/prime-numbers 80:80`
  6. Try a request: `curl http://localhost:80/prime/12`
- 7. 
+ 7. Delete cluster: `kind delete cluster --name k8s-playground`
+
 ## How to test it locally?
 Let's use the `pipenv` module to create a virtual environment, so first install it with `pip install pipenv`.
  1. Install the dependencies of our venv: `pipenv install`
