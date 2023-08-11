@@ -17,7 +17,9 @@ except k8s_config.ConfigException:
 api_core_instance = k8s_client.CoreV1Api()
 api_apps_instance = k8s_client.AppsV1Api()
 pretty = 'pretty_example'
+# TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
 namespace = "default"
+deployment_name = "prime-numbers"
 
 logger = logging.getLogger("vertical_scale")
 
@@ -30,14 +32,45 @@ def handlingException(api_call):
 def updateResourcesPod(pod_name, new_pod_data):
     return api_core_instance.patch_namespaced_pod(name=pod_name, namespace=namespace, body=new_pod_data)
 
+def updateStatusResourcesPod(pod_name, new_pod_data):
+    api_response = api_core_instance.patch_namespaced_pod_status(name=pod_name, namespace=namespace, body=new_pod_data)
+    #pprint(api_response)
+    return api_response
 
-def createDictContainerResources(pod, cpu_req, cpu_lim, mem_req, mem_lim):
+
+def createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_lim):
     #TODO: Search of container index given app name. Not thinking that it is going to be always the container 0
-    pod.spec.containers[0].resources = {'limits': {'cpu': '%s' % cpu_lim,
-                                                   'memory': '%s' % mem_lim},
-                                        'requests': {'cpu': '%s' % cpu_req,
-                                                     'memory': '%s' % mem_req}}
-    return pod
+    dict_spec_container_resources = [{
+                                    'op': 'replace', 'path': f'/spec/containers/{container_idx}/resources',
+                                    'value': {
+                                                'limits': {'cpu': '%s' % cpu_lim,'memory': '%s' % mem_lim},
+                                                'requests': {'cpu': '%s' % cpu_req,'memory': '%s' % mem_req}
+                                            }
+                                    }]
+    
+    return dict_spec_container_resources
+
+
+def createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, mem_req, mem_lim):
+    #TODO: Search of container index given app name. Not thinking that it is going to be always the container 0
+    """ dict_status_container_resources = [{
+                                    'op': 'replace', 'path': f'/status/containerStatuses/{container_status_idx}',
+                                    'value': {
+                                                'allocatedResources': {'cpu': '%s' % cpu_req,'memory': '%s' % mem_req},
+                                                'resources': {'limits': {'cpu': '%s' % cpu_lim,'memory': '%s' % mem_lim},
+                                                            'requests': {'cpu': '%s' % cpu_req,'memory': '%s' % mem_req}
+                                                            }
+                                                }}] """
+
+    dict_status_container_resources = [{
+                                    'op': 'replace', 'path': f'/status/containerStatuses/{container_status_idx}/allocatedResources',
+                                    'value': {
+                                                'cpu': '%s' % cpu_req,'memory': '%s' % mem_req,
+                                                
+                                                }}]
+
+    return dict_status_container_resources
+
 
 def getPod():
     """
@@ -58,15 +91,21 @@ def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     """
     pod = getPod()
     pod_name = pod.metadata.name
-    dict_container_resources = createDictContainerResources(pod, cpu_req, cpu_lim, mem_req, mem_lim)
-    #pprint(new_data)
-    updateResourcesPod(pod_name,dict_container_resources)
+    container_idx = getContainerIdx(pod, getAppName())
+    # Update pod's spec
+    dict_container_resources = createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_lim)
+    updateResourcesPod(pod_name, dict_container_resources)
+    # Update pod's status
+    #container_status_idx = getContainerStatusIdx(pod, getAppName()) #TODO
+    #dict_container_status_resources = createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, mem_req, mem_lim)
+    #updateStatusResourcesPod(pod_name,dict_container_status_resources)
     logger.info("App container resources modified")
     logger.info("New resources: cpu_req: %s, cpu_lim: %s, mem_req: %s, and mem_lim: %s" % (cpu_req, cpu_lim, mem_req, mem_lim))
 
 def getContainersPort():
     pod = getPod()
-    port = pod.spec.containers[0].ports[0].container_port
+    container_idx = getContainerIdx(pod, getAppName())
+    port = pod.spec.containers[container_idx].ports[0].container_port
     logger.info(("Container port is: %d" % (port)))
     return port
 
@@ -77,7 +116,8 @@ def deletePod():
     api_core_instance.delete_namespaced_pod(name=podName, namespace=namespace, body=k8s_client.V1DeleteOptions(), pretty=pretty)
 
 def getContainerResources(pod):
-    pod_resources = pod.spec.containers[0].resources
+    container_idx = getContainerIdx(pod, getAppName())
+    pod_resources = pod.spec.containers[container_idx].resources
     cpu_req = pod_resources.requests['cpu']
     cpu_lim = pod_resources.limits['cpu']
     mem_req = pod_resources.requests['memory']
@@ -85,9 +125,13 @@ def getContainerResources(pod):
     resources = [cpu_req, cpu_lim, mem_req, mem_lim]
     return resources
 
-def isInZeroState():
+def isInZeroState(zeroStateDef):
     [cpu_req, cpu_lim, mem_req, mem_lim] = getContainerResources(getPod())
-    if (cpu_req =='1m' and cpu_lim == '1m' and mem_req == '1Mi' and mem_lim == "1Mi"):
+    logger.debug("cpu_req is:" + zeroStateDef.cpu_req)
+    logger.debug("cpu_lim is:" + zeroStateDef.cpu_lim)
+    logger.debug("mem_req is:" + zeroStateDef.mem_req)
+    logger.debug("mem_lim is:" + zeroStateDef.mem_lim)
+    if (cpu_req == zeroStateDef.cpu_req and cpu_lim == zeroStateDef.cpu_lim and mem_req == zeroStateDef.mem_req and mem_lim == zeroStateDef.mem_lim):
         logger.debug("in Zero state")
         return True
     else: 
@@ -95,11 +139,51 @@ def isInZeroState():
         return False
 
 def isContainerReady():
-    pod = getPod()
-    return pod.status.container_statuses[0].ready
+    container_status = getContainerStatus()
+    return container_status.ready
 
 def getDefaultConfigContainer():
-    deployment_name = "prime-numbers"
     deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace, pretty=pretty)
     pod = deployment.spec.template
     return getContainerResources(pod)
+
+def getContainerStatus():
+    pod = getPod()
+    container_status_idx = getContainerStatusIdx(pod, getAppName())
+    return pod.status.container_statuses[container_status_idx]
+
+def getAppName():
+    # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
+    deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace, pretty=pretty)
+    app_name = deployment.spec.template.metadata.labels["app"]
+    return app_name
+
+def getContainerIdx(pod, container_name):
+    for idx, container in enumerate(pod.spec.containers):
+        if container.name == container_name:
+            container_idx = idx
+            break
+    return container_idx
+
+def getContainerStatusIdx(pod, container_name):
+    for idx, container in enumerate(pod.status.container_statuses):
+        if container.name == container_name:
+            container_status_idx = idx
+            break
+    return container_status_idx
+
+def getContainerRestartCount():
+    container_status = getContainerStatus()
+    return container_status.restart_count
+    
+#pprint(getPod()) # Pod's info
+
+#verticalScale("250m", "250m", "128Mi", "128Mi")
+#verticalScale("1m", "1m", "10Mi", "10Mi") # Seems to be the minimum acceptable
+#verticalScale("10m", "10m", "10Mi", "10Mi") # Pablo's threshold
+#verticalScale("5m", "5m", "5Mi", "5Mi")
+#verticalScale("1m", "1m", "5Mi", "5Mi")
+#verticalScale("1m", "1m", "1Mi", "1Mi")
+#pprint(getContainerResources(getPod()))
+#print("STATUSSSSSS")
+#pprint(getContainerStatus()) # Container's status

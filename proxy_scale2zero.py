@@ -18,6 +18,15 @@ DELAY = 0.0001
 forward_to = ('localhost', getContainersPort()) # Find port number of the service !!!!!!!!!!
 TIME = 30.0 # Timer to zeroimport logging
 
+
+class ResourcesState():
+    def __init__(self, cpu_req, cpu_lim, mem_req, mem_lim):
+        self.cpu_req = cpu_req
+        self.cpu_lim = cpu_lim
+        self.mem_req = mem_req
+        self.mem_lim = mem_lim
+
+
 class Forward:
     def __init__(self):
         self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -52,7 +61,7 @@ class TheServer:
 
     input_list = []
     channel = {}
-    waiting_time_interval = 5 # in seconds
+    waiting_time_interval = 1 # in seconds
     separator = "____________________________________________________________________________________________________"
 
     def __init__(self, host, port):
@@ -61,11 +70,12 @@ class TheServer:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(200)
+        self.zeroState = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi")
 
     def vscale_to_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale TO zero")
-        verticalScale("1m", "1m", "1Mi", "1Mi")
+        verticalScale(self.zeroState.cpu_req, self.zeroState.cpu_lim, self.zeroState.mem_req, self.zeroState.mem_lim)
         logger.info(self.separator)
 
     def vscale_from_zero(self):
@@ -80,7 +90,7 @@ class TheServer:
 
     def create_and_start_timer(self):
         self.t = self.create_timer()
-        #self.t.daemon = True
+        #self.t.daemon = True # TODO: Possible way to handle ctrl+C interruption and close proxy w/o sending other request.
         self.t.start()
 
     def main_loop(self):
@@ -89,6 +99,8 @@ class TheServer:
         Args: Self
         Returns: Nothing
         """
+        # TODO: Introduce logic that makes use of metrics-server API for the TO zero
+        # TODO: Analyze timer control. If request processing takes more than TIME secs app could fail. e.g. n>=200K. Might involve to start timer after receiving response.
         self.input_list.append(self.server)
         self.create_and_start_timer()
         while 1:
@@ -101,12 +113,14 @@ class TheServer:
                     self.create_and_start_timer()
                     # Perform vertical scaling and wait for container is ready before forwarding the request.
                     # Besides that, stops the timer because container restarting time is unknown.
-                    if isInZeroState():
+                    if isInZeroState(self.zeroState):
                         self.t.cancel()
-                        self.vscale_from_zero() 
+                        restart_count_before_scaling = getContainerRestartCount() # Restart count before re-sizing
+                        self.vscale_from_zero()
+                        # Wait for container restart - when working w/ a Zero State that doesn't introduce a CrashLoopBackOff warning e.g. cpu="10m", mem="10Mi"
                         ctr = 0
-                        # Wait some time till app container is ready
-                        while isContainerReady() == False:
+                        # Wait some time till app container is ready and has been restarted (implies it has been resized)
+                        while ((isContainerReady() == False) or (getContainerRestartCount() <= restart_count_before_scaling)):
                             ctr = ctr+1
                             logger.info("Cycle of %s secs #: %s" % (self.waiting_time_interval, ctr))
                             time.sleep(self.waiting_time_interval) 

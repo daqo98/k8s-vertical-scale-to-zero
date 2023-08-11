@@ -31,15 +31,15 @@ spec:
             limits:
               memory: 128Mi
               cpu: 250m
-        - name: proxy-vertical-scaling
-          image: quintero98/proxy-vertical-scaling:latest
+        - name: proxy-vertical-scaling #aa
+          image: quintero98/proxy-vertical-scaling:v2 #nginx:1.25.1 
           imagePullPolicy: Always
           ports:
             - containerPort: 80
           resources:
             requests:
-              memory: 200Mi
-              cpu: 500m
+              memory: 150Mi
+              cpu: 250m
             limits:
-              memory: 200Mi
-              cpu: 500m
+              memory: 150Mi
+              cpu: 250m

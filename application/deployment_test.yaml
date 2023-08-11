@@ -15,7 +15,7 @@ spec:
       serviceAccountName: pod-controller-sa
       containers:
         - name: prime-numbers
-          image: systemautoscaler/prime-numbers:dev
+          image: systemautoscaler/prime-numbers:dev #nginx:1.25.1 #
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

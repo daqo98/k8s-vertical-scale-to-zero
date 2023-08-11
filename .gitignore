@@ -1,5 +1,6 @@
 # Miscellaneous
-api_response.txt
+*.txt
+*.docx
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
