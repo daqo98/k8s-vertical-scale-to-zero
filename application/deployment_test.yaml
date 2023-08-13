@@ -21,9 +21,9 @@ spec:
             - containerPort: 8080
           resizePolicy:
             - resourceName: cpu
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
           resources:
             requests:
               memory: 128Mi

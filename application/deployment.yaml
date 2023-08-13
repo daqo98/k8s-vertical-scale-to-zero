@@ -21,9 +21,9 @@ spec:
             - containerPort: 8080
           resizePolicy:
             - resourceName: cpu
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
             - resourceName: memory
-              restartPolicy: RestartContainer
+              restartPolicy: NotRequired
           resources:
             requests:
               memory: 128Mi
@@ -32,7 +32,7 @@ spec:
               memory: 128Mi
               cpu: 250m
         - name: proxy-vertical-scaling #aa
-          image: quintero98/proxy-vertical-scaling:v2 #nginx:1.25.1 
+          image: quintero98/proxy-vertical-scaling:v3 #nginx:1.25.1 
           imagePullPolicy: Always
           ports:
             - containerPort: 80

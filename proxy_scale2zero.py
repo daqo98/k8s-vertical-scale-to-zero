@@ -15,7 +15,8 @@ logger = logging.getLogger("sidecar_proxy")
 # But when buffer get to high or delay go too down, you can broke things
 BUFFERSIZE = 4096
 DELAY = 0.0001
-forward_to = ('localhost', getContainersPort()) # Find port number of the service !!!!!!!!!!
+forward_to = ('127.0.0.1', getContainersPort()) # Find port number of the service !!!!!!!!!!
+PROXY_PORT = 80
 TIME = 30.0 # Timer to zeroimport logging
 
 
@@ -70,12 +71,14 @@ class TheServer:
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(200)
-        self.zeroState = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi")
+        # Zero state definition (it must be fine tuned for every app)
+        self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi")
+        self.reqs_in_queue = 0
 
     def vscale_to_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale TO zero")
-        verticalScale(self.zeroState.cpu_req, self.zeroState.cpu_lim, self.zeroState.mem_req, self.zeroState.mem_lim)
+        verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim)
         logger.info(self.separator)
 
     def vscale_from_zero(self):
@@ -100,7 +103,6 @@ class TheServer:
         Returns: Nothing
         """
         # TODO: Introduce logic that makes use of metrics-server API for the TO zero
-        # TODO: Analyze timer control. If request processing takes more than TIME secs app could fail. e.g. n>=200K. Might involve to start timer after receiving response.
         self.input_list.append(self.server)
         self.create_and_start_timer()
         while 1:
@@ -109,22 +111,15 @@ class TheServer:
             inputready, outputready, exceptready = ss(self.input_list, [], [])
             for self.s in inputready:
                 if self.s == self.server:
-                    self.t.cancel()
-                    self.create_and_start_timer()
                     # Perform vertical scaling and wait for container is ready before forwarding the request.
-                    # Besides that, stops the timer because container restarting time is unknown.
-                    if isInZeroState(self.zeroState):
-                        self.t.cancel()
-                        restart_count_before_scaling = getContainerRestartCount() # Restart count before re-sizing
+                    if isInZeroState(self.zero_state):
                         self.vscale_from_zero()
-                        # Wait for container restart - when working w/ a Zero State that doesn't introduce a CrashLoopBackOff warning e.g. cpu="10m", mem="10Mi"
                         ctr = 0
-                        # Wait some time till app container is ready and has been restarted (implies it has been resized)
-                        while ((isContainerReady() == False) or (getContainerRestartCount() <= restart_count_before_scaling)):
+                        # Wait some time till app container is ready
+                        while ((isContainerReady() != True)):
                             ctr = ctr+1
                             logger.info("Cycle of %s secs #: %s" % (self.waiting_time_interval, ctr))
-                            time.sleep(self.waiting_time_interval) 
-                        self.create_and_start_timer() # Restart the timer after 
+                            time.sleep(self.waiting_time_interval)
                     self.on_accept() # Attempt to forward the request to the app
                     break
 
@@ -169,10 +164,22 @@ class TheServer:
     def on_recv(self):
         data = self.data
         logger.info(data)
+        # TRANSITIONS
+        # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
+        # Proxy receiving request
+        if (self.channel[self.s].getpeername() == forward_to):
+            self.reqs_in_queue = self.reqs_in_queue + 1
+        # Proxy receiving response
+        if (self.channel[self.s].getsockname()[1] == PROXY_PORT):
+            self.reqs_in_queue = self.reqs_in_queue - 1
+        # STATES
+        if self.reqs_in_queue == 0 : self.create_and_start_timer()
+        elif self.t.is_alive(): self.t.cancel()
+        logger.info("%s requests in queue..." % (self.reqs_in_queue))
         self.channel[self.s].send(data)
       
 if __name__ == '__main__':
-    server = TheServer('0.0.0.0', 80) # Socket of the Proxy server
+    server = TheServer('0.0.0.0', PROXY_PORT) # Socket of the Proxy server
     try:
         server.main_loop()
     except KeyboardInterrupt:
