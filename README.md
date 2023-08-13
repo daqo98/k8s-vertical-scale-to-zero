@@ -23,7 +23,7 @@ It is required to have Kubectl v1.27 and a recent version of Kind installed. Per
 Let's use the `pipenv` module to create a virtual environment, so first install it with `pip install pipenv`.
  1. Install the dependencies of our venv: `pipenv install`
  2. Run the virtual environment: `pipenv shell`
- 3. Run the proxy: `python http_scale2zero.py`
+ 3. Run the proxy: `python proxy_scale2zero.py`
  4. In other tab, follow the steps described in [How to test it in Kubernetes?](https://github.com/daqo98/k8s-vertical-scale-to-zero/tree/main#how-to-test-it-in-kubernetes) but since we're going to use our local proxy and not the one deployed in Kubernetes, do port-forward of the app not the proxy i.e. port 8080:8080 `kubectl port-forward pods/<pod-name> 8080:8080`
  5. In other tab send the requests `curl http://localhost:80/prime/12`. Our local proxy will forward the request to `localhost:8080` which forwards the request to the prime-numbers app running in Kubernetes.
 
