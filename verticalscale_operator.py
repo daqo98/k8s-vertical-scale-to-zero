@@ -2,6 +2,7 @@
 import kopf
 import kubernetes.config as k8s_config
 import kubernetes.client as k8s_client
+from kubernetes.client.rest import ApiException
 import logging
 import os
 from pprint import pprint
@@ -26,7 +27,7 @@ logger = logging.getLogger("vertical_scale")
 def handlingException(api_call):
     try: 
         return(api_call)
-    except k8s_client.rest.ApiException as e:
+    except ApiException as e:
         logger.error("Exception: %s\n" % e)
 
 def updateResourcesPod(pod_name, new_pod_data):
