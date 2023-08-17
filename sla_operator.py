@@ -48,7 +48,7 @@ def getSLA():
     except ApiException as e:
         print("Exception when calling CustomObjectsApi->get_namespaced_custom_object: %s\n" % e)
 
-def modifySLA(sla, resp_time, cpu_req, cpu_lim, mem_req, mem_lim):
+def modifySLA(sla, cpu_req, cpu_lim, mem_req, mem_lim, resp_time):
     sla['spec']['defaultResources'] = {'cpu': f'{cpu_req}', 'memory': f'{mem_req}'}
     sla['spec']['maxResources'] = {'cpu': f'{cpu_lim}', 'memory': f'{mem_lim}'}
     sla['spec']['minResources'] = {'cpu': f'{cpu_req}', 'memory': f'{mem_req}'}
@@ -61,9 +61,9 @@ def patchSLA(body):
     except ApiException as e:
         print("Exception when calling CustomObjectsApi->patch_namespaced_custom_object: %s\n" % e)
 
-def updateSLA(resp_time, cpu_req, cpu_lim, mem_req, mem_lim):
+def updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, resp_time):
     sla = getSLA()
-    partial_new_sla = modifySLA(sla, resp_time, cpu_req, cpu_lim, mem_req, mem_lim)
+    partial_new_sla = modifySLA(sla, cpu_req, cpu_lim, mem_req, mem_lim, resp_time)
     patchSLA(partial_new_sla)
 
 #pprint(getCRD())

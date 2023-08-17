@@ -5,6 +5,7 @@ import select
 from threading import Timer
 import time
 
+from sla_operator import *
 from verticalscale_operator import *
 
 # Create and configure logger
@@ -21,11 +22,12 @@ TIME = 30.0 # Timer to zeroimport logging
 
 
 class ResourcesState():
-    def __init__(self, cpu_req, cpu_lim, mem_req, mem_lim):
+    def __init__(self, cpu_req, cpu_lim, mem_req, mem_lim, resp_time):
         self.cpu_req = cpu_req
         self.cpu_lim = cpu_lim
         self.mem_req = mem_req
         self.mem_lim = mem_lim
+        self.resp_time = resp_time
 
 
 class Forward:
@@ -72,20 +74,23 @@ class TheServer:
         self.server.bind((host, port))
         self.server.listen(200)
         # Zero state definition (it must be fine tuned for every app)
-        self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi")
+        self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi", resp_time="1000000m")
         self.reqs_in_queue = 0
 
     def vscale_to_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale TO zero")
         verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim)
+        #updateSLA(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim, self.zero_state.resp_time)
         logger.info(self.separator)
 
     def vscale_from_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale FROM zero")
         [cpu_req, cpu_lim, mem_req, mem_lim] = getDefaultConfigContainer()
+        #TODO: Pass default SLA as a dict
         verticalScale(cpu_req, cpu_lim, mem_req, mem_lim)
+        #updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
         logger.info(self.separator)
 
     def create_timer(self):
