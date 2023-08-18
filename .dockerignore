@@ -6,3 +6,4 @@
 !Pipfile.lock
 !proxy_scale2zero.py
 !verticalscale_operator.py
+!sla_operator.py

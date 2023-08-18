@@ -129,19 +129,14 @@ class TheServer:
                             time.sleep(self.waiting_time_interval)
                     self.on_accept() # Attempt to forward the request to the app
                     break
-                try:
-                    self.data = self.s.recv(BUFFERSIZE)
-                except Exception as e:
-                    logger.error(e)
-                    break
+
+                self.data = self.s.recv(BUFFERSIZE)
                 # Close connection when no more data is in buffer
                 if len(self.data) == 0:
                     self.on_close()
                     break
                 else:
                     self.on_recv()
-                    self.checkpoint_reqs = self.reqs_in_queue
-                    logger.info(f"{self.checkpoint_reqs} requests in checkpoint A...")
 
     def on_accept(self):
         forward = Forward().start(forward_to[0], forward_to[1])
@@ -152,12 +147,12 @@ class TheServer:
 
             # Cancel timer when users are connected
             self.users_in_sys = self.users_in_sys + 1
-            #if self.t.is_alive(): self.t.cancel()
+            if self.t.is_alive(): self.t.cancel()
             logger.info("%s users in system..." % (self.users_in_sys))
 
-            """ # LONG timer against idle connected users
+            # LONG timer against idle connected users
             if (self.users_in_sys == 1): 
-                self.create_and_start_timer(TIME_LONG) """
+                self.create_and_start_timer(TIME_LONG)
 
             self.input_list.append(clientsock)
             self.input_list.append(forward)
@@ -174,28 +169,10 @@ class TheServer:
 
         # Start SHORT timer when NO users are connected
         self.users_in_sys = self.users_in_sys - 1
+        if self.users_in_sys == 0 :
+            if self.t.is_alive(): self.t.cancel()
+            self.create_and_start_timer(TIME_SHORT)
         logger.info("%s users in system..." % (self.users_in_sys))
-        #if self.users_in_sys == 0 :
-            #self.reqs_in_queue = 0
-            ##if self.t.is_alive(): self.t.cancel()
-            ##self.create_and_start_timer(TIME_SHORT)
-        """
-        logger.info(f"Peername is: {self.s.getpeername()}") #self.channel[self.s].getpeername()
-        logger.info(f"forward_to is: {forward_to}")
-        logger.info(f"They are equal: {self.s.getpeername() == forward_to}")
-
-        if ((self.s.getpeername() == forward_to)):
-            self.reqs_in_queue = self.reqs_in_queue - 1
-            if self.reqs_in_queue == 0 : self.create_and_start_timer(TIME_SHORT)
-            logger.info("%s requests in queue..." % (self.reqs_in_queue)) """
-
-        logger.info(f"{self.checkpoint_reqs} requests in checkpoint B...")
-        logger.info(f"{self.reqs_in_queue} requests in queue...")
-        if ((self.reqs_in_queue == self.checkpoint_reqs) and (self.reqs_in_queue > 0)):
-            self.reqs_in_queue = self.reqs_in_queue - 1
-            if self.reqs_in_queue == 0 : self.create_and_start_timer(TIME_SHORT)
-            logger.info("%s requests in queue..." % (self.reqs_in_queue))
-
         logger.info(self.separator)
 
         # remove objects from input_list
@@ -214,12 +191,12 @@ class TheServer:
         data = self.data
         logger.info(data)
 
-        """ # Restart LONG timer after receiving a request
+        # Restart LONG timer after receiving a request
         if (self.channel[self.s].getpeername() == forward_to):
             if self.t.is_alive(): self.t.cancel()
-            self.create_and_start_timer(TIME_LONG) """
+            self.create_and_start_timer(TIME_LONG)
 
-        # TRANSITIONS
+        """ # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
         # Proxy receiving request
         if (self.channel[self.s].getpeername() == forward_to):
@@ -228,9 +205,9 @@ class TheServer:
         if ((self.channel[self.s].getsockname()[1] == PROXY_PORT)): #and (self.reqs_in_queue > 0)):
             self.reqs_in_queue = self.reqs_in_queue - 1
         # STATES
-        if self.reqs_in_queue == 0 : self.create_and_start_timer(TIME_SHORT)
+        if self.reqs_in_queue == 0 : self.create_and_start_timer()
         elif self.t.is_alive(): self.t.cancel()
-        logger.info("%s requests in queue..." % (self.reqs_in_queue))
+        logger.info("%s requests in queue..." % (self.reqs_in_queue)) """
         self.channel[self.s].send(data)
       
 if __name__ == '__main__':

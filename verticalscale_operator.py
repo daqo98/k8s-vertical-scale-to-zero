@@ -77,7 +77,9 @@ def getPod():
     """
     Returns: First pod in the namespace specified in the global variable as a V1Pod object
     """
-    return api_core_instance.list_namespaced_pod(namespace=namespace, pretty=pretty).items[0]
+    pods = api_core_instance.list_namespaced_pod(namespace=namespace, pretty=pretty)
+    pod_idx = getPodIdx(pods)
+    return pods.items[pod_idx]
 
 def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     """
@@ -176,6 +178,13 @@ def getContainerStatusIdx(pod, container_name):
 def getContainerRestartCount():
     container_status = getContainerStatus()
     return container_status.restart_count
+
+def getPodIdx(pods):
+    for idx, pod in enumerate(pods.items):
+        if deployment_name in pod.metadata.name:
+            pod_idx = idx
+            break
+    return pod_idx
     
 #pprint(getPod()) # Pod's info
 
