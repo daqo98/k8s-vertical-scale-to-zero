@@ -76,6 +76,7 @@ class TheServer:
         # Zero state definition (it must be fine tuned for every app)
         self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi", resp_time="1000000m")
         self.reqs_in_queue = 0
+        self.users_in_sys = 0
 
     def vscale_to_zero(self):
         logger.info(self.separator)
@@ -141,7 +142,12 @@ class TheServer:
         clientsock, clientaddr = self.server.accept()
         if forward:
             logger.info(self.separator)
-            logger.info((clientaddr, "has connected"))
+            logger.info((clientaddr, "has connected")) 
+
+            self.users_in_sys = self.users_in_sys + 1
+            if self.t.is_alive(): self.t.cancel()
+            logger.info("%s users in system..." % (self.users_in_sys))
+
             self.input_list.append(clientsock)
             self.input_list.append(forward)
             self.channel[clientsock] = forward
@@ -154,6 +160,11 @@ class TheServer:
     def on_close(self):
         logger.info((self.s.getpeername(), "has disconnected"))
         logger.info(self.separator)
+
+        self.users_in_sys = self.users_in_sys - 1
+        if self.users_in_sys == 0 : self.create_and_start_timer()
+        logger.info("%s users in system..." % (self.users_in_sys))
+
         # remove objects from input_list
         self.input_list.remove(self.s)
         self.input_list.remove(self.channel[self.s])
@@ -172,15 +183,15 @@ class TheServer:
         # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
         # Proxy receiving request
-        if (self.channel[self.s].getpeername() == forward_to):
+        """ if (self.channel[self.s].getpeername() == forward_to):
             self.reqs_in_queue = self.reqs_in_queue + 1
         # Proxy receiving response
-        if (self.channel[self.s].getsockname()[1] == PROXY_PORT):
+        if ((self.channel[self.s].getsockname()[1] == PROXY_PORT)): #and (self.reqs_in_queue > 0)):
             self.reqs_in_queue = self.reqs_in_queue - 1
         # STATES
         if self.reqs_in_queue == 0 : self.create_and_start_timer()
         elif self.t.is_alive(): self.t.cancel()
-        logger.info("%s requests in queue..." % (self.reqs_in_queue))
+        logger.info("%s requests in queue..." % (self.reqs_in_queue)) """
         self.channel[self.s].send(data)
       
 if __name__ == '__main__':

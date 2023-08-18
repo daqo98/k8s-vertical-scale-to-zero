@@ -7,6 +7,7 @@ name = "pypi"
 kopf = "*"
 kubernetes = "*"
 requests = "*"
+locust = "*"
 
 [dev-packages]
 
