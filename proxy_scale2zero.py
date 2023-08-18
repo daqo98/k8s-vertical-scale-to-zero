@@ -18,7 +18,8 @@ BUFFERSIZE = 4096
 DELAY = 0.0001
 forward_to = ('127.0.0.1', getContainersPort()) # Find port number of the service !!!!!!!!!!
 PROXY_PORT = 80
-TIME = 30.0 # Timer to zeroimport logging
+TIME_SHORT = 30.0 # Timer to zeroimport logging
+TIME_LONG = 90.0
 
 
 class ResourcesState():
@@ -94,11 +95,11 @@ class TheServer:
         #updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
         logger.info(self.separator)
 
-    def create_timer(self):
-        return Timer(TIME,self.vscale_to_zero)
+    def create_timer(self,time):
+        return Timer(time,self.vscale_to_zero)
 
-    def create_and_start_timer(self):
-        self.t = self.create_timer()
+    def create_and_start_timer(self,time):
+        self.t = self.create_timer(time)
         #self.t.daemon = True # TODO: Possible way to handle ctrl+C interruption and close proxy w/o sending other request.
         self.t.start()
 
@@ -110,7 +111,7 @@ class TheServer:
         """
         # TODO: Introduce logic that makes use of metrics-server API for the TO zero
         self.input_list.append(self.server)
-        self.create_and_start_timer()
+        self.create_and_start_timer(TIME_SHORT)
         while 1:
             time.sleep(DELAY)
             ss = select.select
@@ -142,11 +143,16 @@ class TheServer:
         clientsock, clientaddr = self.server.accept()
         if forward:
             logger.info(self.separator)
-            logger.info((clientaddr, "has connected")) 
+            logger.info((clientaddr, "has connected"))
 
+            # Cancel timer when users are connected
             self.users_in_sys = self.users_in_sys + 1
             if self.t.is_alive(): self.t.cancel()
             logger.info("%s users in system..." % (self.users_in_sys))
+
+            # LONG timer against idle connected users
+            if (self.users_in_sys == 1): 
+                self.create_and_start_timer(TIME_LONG)
 
             self.input_list.append(clientsock)
             self.input_list.append(forward)
@@ -161,8 +167,11 @@ class TheServer:
         logger.info((self.s.getpeername(), "has disconnected"))
         logger.info(self.separator)
 
+        # Start SHORT timer when NO users are connected
         self.users_in_sys = self.users_in_sys - 1
-        if self.users_in_sys == 0 : self.create_and_start_timer()
+        if self.users_in_sys == 0 :
+            if self.t.is_alive(): self.t.cancel()
+            self.create_and_start_timer(TIME_SHORT)
         logger.info("%s users in system..." % (self.users_in_sys))
 
         # remove objects from input_list
@@ -180,10 +189,16 @@ class TheServer:
     def on_recv(self):
         data = self.data
         logger.info(data)
-        # TRANSITIONS
+
+        # Restart LONG timer after receiving a request
+        if (self.channel[self.s].getpeername() == forward_to):
+            if self.t.is_alive(): self.t.cancel()
+            self.create_and_start_timer(TIME_LONG)
+
+        """ # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
         # Proxy receiving request
-        """ if (self.channel[self.s].getpeername() == forward_to):
+        if (self.channel[self.s].getpeername() == forward_to):
             self.reqs_in_queue = self.reqs_in_queue + 1
         # Proxy receiving response
         if ((self.channel[self.s].getsockname()[1] == PROXY_PORT)): #and (self.reqs_in_queue > 0)):
