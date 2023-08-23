@@ -20,6 +20,7 @@ forward_to = ('127.0.0.1', getContainersPort()) # Find port number of the servic
 PROXY_PORT = 80
 TIME_SHORT = 30.0 # Timer to zeroimport logging
 TIME_LONG = 90.0
+PROXY_ADDR = ('127.0.0.1', PROXY_PORT)
 
 
 class ResourcesState():
@@ -78,6 +79,7 @@ class TheServer:
         self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi", resp_time="1000000m")
         self.reqs_in_queue = 0
         self.users_in_sys = 0
+        self.clients_req_pending_list = []
 
     def vscale_to_zero(self):
         logger.info(self.separator)
@@ -130,13 +132,26 @@ class TheServer:
                     self.on_accept() # Attempt to forward the request to the app
                     break
 
-                self.data = self.s.recv(BUFFERSIZE)
+                try:
+                    self.data = self.s.recv(BUFFERSIZE)
+                except Exception as e:
+                    logger.error("Error caused by socket.recv(BUFFERSIZE)")
+                    logger.error(e)
+                    #break
+
                 # Close connection when no more data is in buffer
-                if len(self.data) == 0:
+                if len(self.data.decode()) == 0:
+                    logger.info("NO MORE DATA IN BUFFER!")
                     self.on_close()
                     break
                 else:
-                    self.on_recv()
+                    try:
+                        self.on_recv()
+                    except Exception as e:
+                        logger.error("Error caused by socker.send(data)")
+                        logger.error(e)
+                        self.on_close()
+                        break
 
     def on_accept(self):
         forward = Forward().start(forward_to[0], forward_to[1])
@@ -145,19 +160,17 @@ class TheServer:
             logger.info(self.separator)
             logger.info((clientaddr, "has connected"))
 
-            # Cancel timer when users are connected
-            self.users_in_sys = self.users_in_sys + 1
-            if self.t.is_alive(): self.t.cancel()
-            logger.info("%s users in system..." % (self.users_in_sys))
-
-            # LONG timer against idle connected users
-            if (self.users_in_sys == 1): 
-                self.create_and_start_timer(TIME_LONG)
-
             self.input_list.append(clientsock)
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
+
+            """ logger.info(f"self.s is: {self.s}")
+            logger.info(f"clientsock is: {clientsock}")
+            logger.info(f"forward is: {forward}")
+            logger.info(f"channel is: {self.channel}")
+            logger.info(f"input_list is: {self.input_list}") """
+            
         else:
             logger.info("Can't establish connection with remote server.")
             logger.info(("Closing connection with client side", clientaddr))
@@ -165,15 +178,17 @@ class TheServer:
 
     def on_close(self):
         logger.info((self.s.getpeername(), "has disconnected"))
-        
+                
+        """ logger.info(f"self.s is: {self.s}")
+        logger.info(f"channel is: {self.channel}")
+        logger.info(f"self.channel[self.s] is: {self.channel[self.s]}")
+        logger.info(f"input_list is: {self.input_list}") """
 
-        # Start SHORT timer when NO users are connected
-        self.users_in_sys = self.users_in_sys - 1
-        if self.users_in_sys == 0 :
-            if self.t.is_alive(): self.t.cancel()
-            self.create_and_start_timer(TIME_SHORT)
-        logger.info("%s users in system..." % (self.users_in_sys))
-        logger.info(self.separator)
+        if self.s.getpeername() in self.clients_req_pending_list:
+            logger.info("Client disconnected had pending requests")
+            self.clients_req_pending_list.remove(self.s.getpeername())
+            self.reqs_in_queue = self.reqs_in_queue - 1
+            self.timer_controlled_by_reqs()
 
         # remove objects from input_list
         self.input_list.remove(self.s)
@@ -186,29 +201,50 @@ class TheServer:
         # delete both objects from channel dict
         del self.channel[out]
         del self.channel[self.s]
+        logger.info(self.separator)
 
     def on_recv(self):
         data = self.data
         logger.info(data)
 
-        # Restart LONG timer after receiving a request
+        """ # Restart LONG timer after receiving a request
         if (self.channel[self.s].getpeername() == forward_to):
             if self.t.is_alive(): self.t.cancel()
-            self.create_and_start_timer(TIME_LONG)
+            self.create_and_start_timer(TIME_LONG) """
 
-        """ # TRANSITIONS
+        """ logger.info(f"self.s: {self.s}")
+        logger.info(f"self.channel[self.s] is: {self.channel[self.s]}")
+        logger.info(f"channel is: {self.channel}") """
+
+        # Connection destination remote address. If req then app's addr, if resp, then client addr
+        conn_dst_remote = self.channel[self.s].getpeername()
+        # Connection destination local address. If req then random port assigned to proxy, if resp, then PROXY_ADDR
+        conn_dst_local =  self.channel[self.s].getsockname()
+        conn_orig_local = self.s.getsockname()
+        conn_orig_remote = self.s.getpeername()
+
+        # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
         # Proxy receiving request
-        if (self.channel[self.s].getpeername() == forward_to):
+        if ((conn_dst_remote == forward_to) and ("GET" in data.decode())):
             self.reqs_in_queue = self.reqs_in_queue + 1
+            self.clients_req_pending_list.append(conn_orig_remote)
+            #if self.t.is_alive(): self.t.cancel()
+            #self.create_and_start_timer(TIME_LONG)
         # Proxy receiving response
-        if ((self.channel[self.s].getsockname()[1] == PROXY_PORT)): #and (self.reqs_in_queue > 0)):
+        if ((conn_dst_local == PROXY_ADDR) and (conn_dst_remote in self.clients_req_pending_list)): #and (self.reqs_in_queue > 0)):
             self.reqs_in_queue = self.reqs_in_queue - 1
-        # STATES
-        if self.reqs_in_queue == 0 : self.create_and_start_timer()
-        elif self.t.is_alive(): self.t.cancel()
-        logger.info("%s requests in queue..." % (self.reqs_in_queue)) """
+            self.clients_req_pending_list.remove(conn_dst_remote)
+
+        self.timer_controlled_by_reqs()
         self.channel[self.s].send(data)
+
+    def timer_controlled_by_reqs(self):
+        # STATES
+        if ((self.reqs_in_queue == 0) and (self.t.is_alive() == False)): self.create_and_start_timer(TIME_SHORT)
+        if ((self.reqs_in_queue != 0) and self.t.is_alive()): self.t.cancel()
+        logger.info(f"{self.reqs_in_queue} requests in queue...")
+        logger.info(f"Clients with pending requests: {self.clients_req_pending_list}")
       
 if __name__ == '__main__':
     server = TheServer('0.0.0.0', PROXY_PORT) # Socket of the Proxy server

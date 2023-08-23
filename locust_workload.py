@@ -27,17 +27,17 @@ class StagesShape(LoadTestShape):
         stop_at_end -- Can be set to stop once all stages have run.
     """
 
-    """ stages = [
-        {"duration": 50, "users": 10, "spawn_rate": 10},
-        {"duration": 100, "users": 0, "spawn_rate": 10},
-        {"duration": 150, "users": 10, "spawn_rate": 10}
-    ] """
-
     stages = [
+        {"duration": 15, "users": 10, "spawn_rate": 10},
+        {"duration": 50, "users": 0, "spawn_rate": 10},
+        {"duration": 60, "users": 10, "spawn_rate": 10}
+    ]
+
+    """ stages = [
         {"duration": 15, "users": 3, "spawn_rate": 3},
         {"duration": 50, "users": 0, "spawn_rate": 3},
         {"duration": 60, "users": 3, "spawn_rate": 3}
-    ]
+    ] """
 
     def tick(self):
         run_time = self.get_run_time()
