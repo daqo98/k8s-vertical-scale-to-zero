@@ -21,7 +21,8 @@ api_ext_instance = k8s_client.ApiextensionsV1Api()
 api_custom_obj_instance = k8s_client.CustomObjectsApi()
 pretty = 'pretty_example'
 
-logger = logging.getLogger("vertical_scale")
+logger = logging.getLogger("KVerSca20_operator")
+logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
 
 group = 'systemautoscaler.polimi.it'
 version = 'v1beta1'
@@ -36,9 +37,9 @@ def listCRDs():
         print("Exception when calling ApiextensionsV1beta1Api->read_custom_resource_definition: %s\n" % e)
 
 def getCRD():
-    name = "servicelevelagreements.systemautoscaler.polimi.it"
+    crd_name = "servicelevelagreements.systemautoscaler.polimi.it"
     try: 
-        return api_ext_instance.read_custom_resource_definition(name, pretty=pretty)
+        return api_ext_instance.read_custom_resource_definition(crd_name, pretty=pretty)
     except ApiException as e:
         print("Exception when calling ApiextensionsV1beta1Api->read_custom_resource_definition: %s\n" % e)
 

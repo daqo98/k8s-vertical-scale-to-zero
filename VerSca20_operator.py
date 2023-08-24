@@ -22,7 +22,7 @@ pretty = 'pretty_example'
 namespace = "default"
 deployment_name = "prime-numbers"
 
-logger = logging.getLogger("vertical_scale")
+logger = logging.getLogger("VerSca20_operator")
 logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
 
 def handlingException(api_call):

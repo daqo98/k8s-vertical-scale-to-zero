@@ -4,6 +4,7 @@
 # ... except for dependencies and source
 !Pipfile
 !Pipfile.lock
-!proxy_scale2zero.py
-!verticalscale_operator.py
-!sla_operator.py
+!KVerSca20.py
+!KVerSca20_operator.py
+!VerSca20.py
+!VerSca20_operator.py

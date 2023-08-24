@@ -32,4 +32,4 @@ COPY . .
 EXPOSE 80
 
 # Run the application
-ENTRYPOINT ["python", "./proxy_scale2zero.py"]
+ENTRYPOINT ["python", "./VerSca20.py"]
