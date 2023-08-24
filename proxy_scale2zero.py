@@ -9,7 +9,7 @@ from sla_operator import *
 from verticalscale_operator import *
 
 # Create and configure logger
-logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.INFO) #, datefmt='%m/%d/%Y %H:%M:%S %z')
+logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG) #, datefmt='%m/%d/%Y %H:%M:%S %z')
 logger = logging.getLogger("sidecar_proxy")
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
@@ -127,7 +127,7 @@ class TheServer:
                         # Wait some time till app container is ready
                         while ((isContainerReady() != True)):
                             ctr = ctr+1
-                            logger.info("Cycle of %s secs #: %s" % (self.waiting_time_interval, ctr))
+                            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
                             time.sleep(self.waiting_time_interval)
                     self.on_accept() # Attempt to forward the request to the app
                     break
@@ -141,14 +141,14 @@ class TheServer:
 
                 # Close connection when no more data is in buffer
                 if len(self.data.decode()) == 0:
-                    logger.info("NO MORE DATA IN BUFFER!")
+                    logger.debug("Empty buffer!")
                     self.on_close()
                     break
                 else:
                     try:
                         self.on_recv()
                     except Exception as e:
-                        logger.error("Error caused by socker.send(data)")
+                        logger.error("Error caused by socket.send(data)")
                         logger.error(e)
                         self.on_close()
                         break
@@ -156,6 +156,7 @@ class TheServer:
     def on_accept(self):
         forward = Forward().start(forward_to[0], forward_to[1])
         clientsock, clientaddr = self.server.accept()
+
         if forward:
             logger.info(self.separator)
             logger.info((clientaddr, "has connected"))
@@ -164,13 +165,6 @@ class TheServer:
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
-
-            """ logger.info(f"self.s is: {self.s}")
-            logger.info(f"clientsock is: {clientsock}")
-            logger.info(f"forward is: {forward}")
-            logger.info(f"channel is: {self.channel}")
-            logger.info(f"input_list is: {self.input_list}") """
-            
         else:
             logger.info("Can't establish connection with remote server.")
             logger.info(("Closing connection with client side", clientaddr))
@@ -179,11 +173,6 @@ class TheServer:
     def on_close(self):
         logger.info((self.s.getpeername(), "has disconnected"))
                 
-        """ logger.info(f"self.s is: {self.s}")
-        logger.info(f"channel is: {self.channel}")
-        logger.info(f"self.channel[self.s] is: {self.channel[self.s]}")
-        logger.info(f"input_list is: {self.input_list}") """
-
         if self.s.getpeername() in self.clients_req_pending_list:
             logger.info("Client disconnected had pending requests")
             self.clients_req_pending_list.remove(self.s.getpeername())
@@ -207,32 +196,25 @@ class TheServer:
         data = self.data
         logger.info(data)
 
-        """ # Restart LONG timer after receiving a request
-        if (self.channel[self.s].getpeername() == forward_to):
-            if self.t.is_alive(): self.t.cancel()
-            self.create_and_start_timer(TIME_LONG) """
-
-        """ logger.info(f"self.s: {self.s}")
-        logger.info(f"self.channel[self.s] is: {self.channel[self.s]}")
-        logger.info(f"channel is: {self.channel}") """
-
-        # Connection destination remote address. If req then app's addr, if resp, then client addr
+        # Connection destination remote address. If req, then app's addr. If resp, then client addr
         conn_dst_remote = self.channel[self.s].getpeername()
-        # Connection destination local address. If req then random port assigned to proxy, if resp, then PROXY_ADDR
+        # Connection destination local address. If req, then random port assigned to proxy. If resp, then PROXY_ADDR
         conn_dst_local =  self.channel[self.s].getsockname()
+        # Connection origin local address. If req, then PROXY_ADDR. If resp, then random port assigned to proxy
         conn_orig_local = self.s.getsockname()
+        # Connection origin remote address. If req, then client addr. If resp, then app's addr
         conn_orig_remote = self.s.getpeername()
 
         # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
-        # Proxy receiving request
+        # Proxy receiving GET request
         if ((conn_dst_remote == forward_to) and ("GET" in data.decode())):
             self.reqs_in_queue = self.reqs_in_queue + 1
             self.clients_req_pending_list.append(conn_orig_remote)
             #if self.t.is_alive(): self.t.cancel()
             #self.create_and_start_timer(TIME_LONG)
-        # Proxy receiving response
-        if ((conn_dst_local == PROXY_ADDR) and (conn_dst_remote in self.clients_req_pending_list)): #and (self.reqs_in_queue > 0)):
+        # Proxy receiving response to a pending request
+        if ((conn_dst_local == PROXY_ADDR) and (conn_dst_remote in self.clients_req_pending_list)):
             self.reqs_in_queue = self.reqs_in_queue - 1
             self.clients_req_pending_list.remove(conn_dst_remote)
 
@@ -243,8 +225,8 @@ class TheServer:
         # STATES
         if ((self.reqs_in_queue == 0) and (self.t.is_alive() == False)): self.create_and_start_timer(TIME_SHORT)
         if ((self.reqs_in_queue != 0) and self.t.is_alive()): self.t.cancel()
-        logger.info(f"{self.reqs_in_queue} requests in queue...")
-        logger.info(f"Clients with pending requests: {self.clients_req_pending_list}")
+        logger.debug(f"{self.reqs_in_queue} requests in queue...")
+        logger.debug(f"Clients with pending requests: {self.clients_req_pending_list}")
       
 if __name__ == '__main__':
     server = TheServer('0.0.0.0', PROXY_PORT) # Socket of the Proxy server

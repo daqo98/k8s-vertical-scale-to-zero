@@ -23,12 +23,13 @@ namespace = "default"
 deployment_name = "prime-numbers"
 
 logger = logging.getLogger("vertical_scale")
+logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
 
 def handlingException(api_call):
     try: 
         return(api_call)
     except ApiException as e:
-        logger.error("Exception: %s\n" % e)
+        logger.error(f"Exception: {e}")
 
 def updateResourcesPod(pod_name, new_pod_data):
     return api_core_instance.patch_namespaced_pod(name=pod_name, namespace=namespace, body=new_pod_data)
@@ -44,8 +45,8 @@ def createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_l
     dict_spec_container_resources = [{
                                     'op': 'replace', 'path': f'/spec/containers/{container_idx}/resources',
                                     'value': {
-                                                'limits': {'cpu': '%s' % cpu_lim,'memory': '%s' % mem_lim},
-                                                'requests': {'cpu': '%s' % cpu_req,'memory': '%s' % mem_req}
+                                                'limits': {'cpu': f'{cpu_lim}','memory': f'{mem_lim}'},
+                                                'requests': {'cpu': f'{cpu_req}','memory': f'{mem_req}'}
                                             }
                                     }]
     
@@ -57,17 +58,17 @@ def createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, m
     """ dict_status_container_resources = [{
                                     'op': 'replace', 'path': f'/status/containerStatuses/{container_status_idx}',
                                     'value': {
-                                                'allocatedResources': {'cpu': '%s' % cpu_req,'memory': '%s' % mem_req},
-                                                'resources': {'limits': {'cpu': '%s' % cpu_lim,'memory': '%s' % mem_lim},
-                                                            'requests': {'cpu': '%s' % cpu_req,'memory': '%s' % mem_req}
-                                                            }
-                                                }}] """
+                                                'allocatedResources': {'cpu': f'{cpu_req}','memory': f'{mem_req}'},
+                                                'resources': {
+                                                    'limits': {'cpu': f'{cpu_lim}','memory': f'{mem_lim}'},
+                                                    'requests': {'cpu': f'{cpu_req}','memory': f'{mem_req}'}
+                                            }
+                                        }}] """
 
     dict_status_container_resources = [{
                                     'op': 'replace', 'path': f'/status/containerStatuses/{container_status_idx}/allocatedResources',
                                     'value': {
-                                                'cpu': '%s' % cpu_req,'memory': '%s' % mem_req,
-                                                
+                                                'cpu': f'{cpu_req}','memory': f'{mem_req}'
                                                 }}]
 
     return dict_status_container_resources
@@ -103,13 +104,13 @@ def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     #dict_container_status_resources = createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, mem_req, mem_lim)
     #updateStatusResourcesPod(pod_name,dict_container_status_resources)
     logger.info("App container resources modified")
-    logger.info("New resources: cpu_req: %s, cpu_lim: %s, mem_req: %s, and mem_lim: %s" % (cpu_req, cpu_lim, mem_req, mem_lim))
+    logger.info(f"New resources: cpu_req: {cpu_req}, cpu_lim: {cpu_lim}, mem_req: {mem_req}, and mem_lim: {mem_lim}")
 
 def getContainersPort():
     pod = getPod()
     container_idx = getContainerIdx(pod, getAppName())
     port = pod.spec.containers[container_idx].ports[0].container_port
-    logger.info(("Container port is: %d" % (port)))
+    logger.info(f"Container port is: {port}")
     return port
 
 def deletePod():
@@ -130,15 +131,9 @@ def getContainerResources(pod):
 
 def isInZeroState(zeroStateDef):
     [cpu_req, cpu_lim, mem_req, mem_lim] = getContainerResources(getPod())
-    logger.debug("cpu_req is:" + zeroStateDef.cpu_req)
-    logger.debug("cpu_lim is:" + zeroStateDef.cpu_lim)
-    logger.debug("mem_req is:" + zeroStateDef.mem_req)
-    logger.debug("mem_lim is:" + zeroStateDef.mem_lim)
     if (cpu_req == zeroStateDef.cpu_req and cpu_lim == zeroStateDef.cpu_lim and mem_req == zeroStateDef.mem_req and mem_lim == zeroStateDef.mem_lim):
-        logger.debug("in Zero state")
         return True
     else: 
-        logger.debug("NOT in Zero state")
         return False
 
 def isContainerReady():
