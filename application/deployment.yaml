@@ -6,7 +6,7 @@ spec:
   selector:
     matchLabels:
       app: prime-numbers
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
@@ -32,8 +32,24 @@ spec:
               memory: 128Mi
               cpu: 250m
         - name: proxy-vertical-scaling #aa
-          image: quintero98/proxy-vertical-scaling:v5 #nginx:1.25.1 
+          image: quintero98/proxy-vertical-scaling:v6 #nginx:1.25.1 
           imagePullPolicy: Always
+          env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: MY_NS_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: MY_DP_NAME
+            value: prime-numbers # Must be changed manually
+          - name: MY_APP_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.labels['app']
+          #  
           ports:
             - containerPort: 80
           resources:

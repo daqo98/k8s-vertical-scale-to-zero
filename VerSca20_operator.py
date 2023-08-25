@@ -19,8 +19,10 @@ api_core_instance = k8s_client.CoreV1Api()
 api_apps_instance = k8s_client.AppsV1Api()
 pretty = 'pretty_example'
 # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
-namespace = "default"
-deployment_name = "prime-numbers"
+namespace_name = os.environ['MY_NS_NAME'] #"default"
+deployment_name = os.environ['MY_DP_NAME'] #"prime-numbers"
+pod_name = os.environ['MY_POD_NAME'] # Copy complete name of the pod
+app_name = os.environ['MY_APP_NAME'] #"prime-numbers"
 
 logger = logging.getLogger("VerSca20_operator")
 logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
@@ -31,11 +33,11 @@ def handlingException(api_call):
     except ApiException as e:
         logger.error(f"Exception: {e}")
 
-def updateResourcesPod(pod_name, new_pod_data):
-    return api_core_instance.patch_namespaced_pod(name=pod_name, namespace=namespace, body=new_pod_data)
+def updateResourcesPod(new_pod_data):
+    return api_core_instance.patch_namespaced_pod(name=pod_name, namespace=namespace_name, body=new_pod_data)
 
-def updateStatusResourcesPod(pod_name, new_pod_data):
-    api_response = api_core_instance.patch_namespaced_pod_status(name=pod_name, namespace=namespace, body=new_pod_data)
+def updateStatusResourcesPod(new_pod_data):
+    api_response = api_core_instance.patch_namespaced_pod_status(name=pod_name, namespace=namespace_name, body=new_pod_data)
     #pprint(api_response)
     return api_response
 
@@ -78,13 +80,13 @@ def getPod():
     """
     Returns: First pod in the namespace specified in the global variable as a V1Pod object
     """
-    pods = api_core_instance.list_namespaced_pod(namespace=namespace, pretty=pretty)
+    pods = api_core_instance.list_namespaced_pod(namespace=namespace_name, pretty=pretty)
     pod_idx = getPodIdx(pods)
     return pods.items[pod_idx]
 
 def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     """
-    Perform vertical scaling of the first container of the first pod in the global variable namespace
+    Perform vertical scaling of the first container of the first pod in the global variable namespace_name
     Args:
         cpu_req: cpu request
         cpu_lim: cpu limit
@@ -94,15 +96,15 @@ def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
         Nothing
     """
     pod = getPod()
-    pod_name = pod.metadata.name
+    #pod_name = pod.metadata.name
     container_idx = getContainerIdx(pod, getAppName())
     # Update pod's spec
     dict_container_resources = createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_lim)
-    updateResourcesPod(pod_name, dict_container_resources)
+    updateResourcesPod(dict_container_resources)
     # Update pod's status
     #container_status_idx = getContainerStatusIdx(pod, getAppName()) #TODO
     #dict_container_status_resources = createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, mem_req, mem_lim)
-    #updateStatusResourcesPod(pod_name,dict_container_status_resources)
+    #updateStatusResourcesPod(dict_container_status_resources)
     logger.info("App container resources modified")
     logger.info(f"New resources: cpu_req: {cpu_req}, cpu_lim: {cpu_lim}, mem_req: {mem_req}, and mem_lim: {mem_lim}")
 
@@ -117,7 +119,7 @@ def deletePod():
     # TODO: Not used so far. Maybe is useful in the future.
     pod = getPod()
     podName = pod.metadata.name
-    api_core_instance.delete_namespaced_pod(name=podName, namespace=namespace, body=k8s_client.V1DeleteOptions(), pretty=pretty)
+    api_core_instance.delete_namespaced_pod(name=podName, namespace=namespace_name, body=k8s_client.V1DeleteOptions(), pretty=pretty)
 
 def getContainerResources(pod):
     container_idx = getContainerIdx(pod, getAppName())
@@ -141,7 +143,7 @@ def isContainerReady():
     return container_status.ready
 
 def getDefaultConfigContainer():
-    deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace, pretty=pretty)
+    deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace_name, pretty=pretty)
     pod = deployment.spec.template
     return getContainerResources(pod)
 
@@ -152,8 +154,8 @@ def getContainerStatus():
 
 def getAppName():
     # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
-    deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace, pretty=pretty)
-    app_name = deployment.spec.template.metadata.labels["app"]
+    #deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace_name, pretty=pretty)
+    #app_name = deployment.spec.template.metadata.labels["app"]
     return app_name
 
 def getContainerIdx(pod, container_name):
@@ -176,19 +178,7 @@ def getContainerRestartCount():
 
 def getPodIdx(pods):
     for idx, pod in enumerate(pods.items):
-        if deployment_name in pod.metadata.name:
+        if pod_name == pod.metadata.name:
             pod_idx = idx
             break
     return pod_idx
-    
-#pprint(getPod()) # Pod's info
-
-#verticalScale("250m", "250m", "128Mi", "128Mi")
-#verticalScale("1m", "1m", "10Mi", "10Mi") # Seems to be the minimum acceptable
-#verticalScale("10m", "10m", "10Mi", "10Mi") # Pablo's threshold
-#verticalScale("5m", "5m", "5Mi", "5Mi")
-#verticalScale("1m", "1m", "5Mi", "5Mi")
-#verticalScale("1m", "1m", "1Mi", "1Mi")
-#pprint(getContainerResources(getPod()))
-#print("STATUSSSSSS")
-#pprint(getContainerStatus()) # Container's status
