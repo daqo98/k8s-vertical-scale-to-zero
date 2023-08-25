@@ -11,9 +11,10 @@ Guide to install:
 
 Guide to use:
 
-  1) Install prometheus:
-    	  - helm install prometheus prometheus-community/kube-prometheus-stack
-     	  - (This line generates deploynment/pods and everything)
+  1) Install prometheus (This line generates deploynment/pods and everything):
+
+     - helm install prometheus prometheus-community/kube-prometheus-stack
+
 
   3) Access Grafana UI: 
 	  - kubectl port-forward deployment/prometheus-grafana 3000
