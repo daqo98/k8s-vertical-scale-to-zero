@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import socket
 import select
@@ -11,12 +12,13 @@ from VerSca20_operator import *
 # Create and configure logger
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG) #, datefmt='%m/%d/%Y %H:%M:%S %z')
 logger = logging.getLogger("sidecar_proxy")
+container_to_forward = os.environ['CONTAINER_TO_FORWARD'] #"http-metrics"
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
 BUFFERSIZE = 4096
 DELAY = 0.0001
-forward_to = ('127.0.0.1', getContainersPort()) # Find port number of the service !!!!!!!!!!
+forward_to = ('127.0.0.1', getContainersPort(container_to_forward)) # Find port number of the service !!!!!!!!!!
 PROXY_PORT = 80
 TIME_SHORT = 30.0 # Timer to zeroimport logging
 TIME_LONG = 90.0
@@ -85,8 +87,14 @@ class TheServer:
     def vscale_to_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale TO zero")
-        #verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim)
-        updateSLA(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim, self.zero_state.resp_time)
+        modifyLabel('autoscaling',"VerSca20")
+        ctr = 0
+        while not isInZeroState(self.zero_state):
+            verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim)
+            ctr = ctr+1
+            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
+            time.sleep(self.waiting_time_interval)
+        #updateSLA(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim, self.zero_state.resp_time)
         logger.info(self.separator)
 
     def vscale_from_zero(self):
@@ -94,8 +102,8 @@ class TheServer:
         logger.info("Vertical scale FROM zero")
         [cpu_req, cpu_lim, mem_req, mem_lim] = getDefaultConfigContainer()
         #TODO: Pass default SLA as a dict
-        #verticalScale(cpu_req, cpu_lim, mem_req, mem_lim)
-        updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
+        verticalScale(cpu_req, cpu_lim, mem_req, mem_lim)
+        #updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
         logger.info(self.separator)
 
     def create_timer(self,time):
@@ -130,6 +138,7 @@ class TheServer:
                             ctr = ctr+1
                             logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
                             time.sleep(self.waiting_time_interval)
+                        modifyLabel('autoscaling',"Kosmos")
                     self.on_accept() # Attempt to forward the request to the app
                     break
 

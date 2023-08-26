@@ -21,7 +21,7 @@ pretty = 'pretty_example'
 # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
 namespace_name = os.environ['MY_NS_NAME'] #"default"
 deployment_name = os.environ['MY_DP_NAME'] #"prime-numbers"
-pod_name = os.environ['MY_POD_NAME'] # Copy complete name of the pod
+pod_name = os.environ['MY_POD_NAME'] #"prime-numbers-b4c6c7565-qkldc" Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
 app_name = os.environ['MY_APP_NAME'] #"prime-numbers"
 
 logger = logging.getLogger("VerSca20_operator")
@@ -33,7 +33,7 @@ def handlingException(api_call):
     except ApiException as e:
         logger.error(f"Exception: {e}")
 
-def updateResourcesPod(new_pod_data):
+def updatePod(new_pod_data):
     return api_core_instance.patch_namespaced_pod(name=pod_name, namespace=namespace_name, body=new_pod_data)
 
 def updateStatusResourcesPod(new_pod_data):
@@ -100,7 +100,7 @@ def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     container_idx = getContainerIdx(pod, getAppName())
     # Update pod's spec
     dict_container_resources = createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_lim)
-    updateResourcesPod(dict_container_resources)
+    updatePod(dict_container_resources)
     # Update pod's status
     #container_status_idx = getContainerStatusIdx(pod, getAppName()) #TODO
     #dict_container_status_resources = createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, mem_req, mem_lim)
@@ -108,9 +108,9 @@ def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
     logger.info("App container resources modified")
     logger.info(f"New resources: cpu_req: {cpu_req}, cpu_lim: {cpu_lim}, mem_req: {mem_req}, and mem_lim: {mem_lim}")
 
-def getContainersPort():
+def getContainersPort(container_name):
     pod = getPod()
-    container_idx = getContainerIdx(pod, getAppName())
+    container_idx = getContainerIdx(pod, container_name)
     port = pod.spec.containers[container_idx].ports[0].container_port
     logger.info(f"Container port is: {port}")
     return port
@@ -182,3 +182,23 @@ def getPodIdx(pods):
             pod_idx = idx
             break
     return pod_idx
+
+def modifyLabel(key,value):
+    pod = getPod()
+    dict_entry = [{'op': 'replace', 'path': f'/metadata/labels/{key}',
+                                    'value': value
+                                    }]
+    updatePod(dict_entry)
+    logger.info(f"Label updated: '{key}: {value}'")
+
+def getPodLabel(label):
+    autoscaling_sys = getPod().metadata.labels[f"{label}"]
+    logger.info(f"'{key}: {value}'")
+    return autoscaling_sys
+
+#logger.info(f"autoscaling: {getPodLabel('autoscaling')}")
+#pprint(f"autoscaling: {getPodLabel('autoscaling')}")
+#modifyLabel('autoscaling',"VerSca20")
+#modifyLabel('autoscaling',"Kosmos")
+#logger.info(f"autoscaling:{getPodLabel('autoscaling')}")
+#pprint(f"autoscaling: {getPodLabel('autoscaling')}")
