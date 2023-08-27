@@ -2,7 +2,8 @@ import logging
 import sys
 import socket
 import select
-from threading
+from threading import Timer
+from threading import Thread
 import time
 
 from VerSca20_operator import *
@@ -131,10 +132,13 @@ class TheServer:
                     self.on_accept() # Attempt to forward the request to the app
                     break
     
-  def proxy_thread(self):
+    def proxy_thread(self):
+        stop_thread = False
         while 1:
             ss = select.select
             inputready, outputready, exceptready = ss(self.input_list, [], [])
+            if stop_thread:
+                break
             for self.conn_orig in inputready:
                 try:
                     self.data = self.conn_orig.recv(BUFFERSIZE)
@@ -144,10 +148,18 @@ class TheServer:
                 # Close connection when no more data is in buffer
                 if len(self.data.decode()) == 0:
                     logger.debug("Empty buffer!")
-                    self.on_close()
+                    try:
+                        self.on_close()
+                    except Exception as e:
+                        logger.error(e)
+                        stop_thread = True
+                    logger.info("Thread ended")
+                    return
                     break
                 else:
+                    
                     self.on_recv()
+
 
     def on_accept(self):
         forward = Forward().start(forward_to[0], forward_to[1])
@@ -162,9 +174,10 @@ class TheServer:
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
   
-            d = threading.Thread(target=self.proxy_thread)
-            d.setDaemon(True)
-            d.start()
+            t = Thread(target=self.proxy_thread)
+            logger.info(f"Thread for {clientaddr} started")
+            t.daemon = True
+            t.start()
       
         else:
             logger.info("Can't establish connection with remote server.")
@@ -194,13 +207,22 @@ class TheServer:
         del self.channel[out]
         del self.channel[self.conn_orig]
         logger.info(self.separator)
+        stop_thread = True
+
+
+
 
     def on_recv(self):
         data = self.data
         logger.info(data)
 
         # Connection destination remote address. If req, then app's addr. If resp, then client addr
-        conn_dst_remote = self.channel[self.conn_orig].getpeername()
+        try:
+            conn_dst_remote = self.channel[self.conn_orig].getpeername()
+        except Exception as e:
+            logger.error(e)
+            stop_thread = True
+            return
         # Connection destination local address. If req, then random port assigned to proxy. If resp, then PROXY_ADDR
         conn_dst_local =  self.channel[self.conn_orig].getsockname()
         # Connection origin local address. If req, then PROXY_ADDR. If resp, then random port assigned to proxy
