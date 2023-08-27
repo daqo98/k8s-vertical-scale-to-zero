@@ -7,6 +7,7 @@ import logging
 import os
 from pprint import pprint
 import requests
+import datetime
 
 # Load Kubernetes config file
 try:
@@ -19,10 +20,10 @@ api_core_instance = k8s_client.CoreV1Api()
 api_apps_instance = k8s_client.AppsV1Api()
 pretty = 'pretty_example'
 # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
-namespace_name = os.environ['MY_NS_NAME'] #"default"
-deployment_name = os.environ['MY_DP_NAME'] #"prime-numbers"
-pod_name = os.environ['MY_POD_NAME'] #"prime-numbers-b4c6c7565-qkldc" Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
-app_name = os.environ['MY_APP_NAME'] #"prime-numbers"
+namespace_name = "default" #os.environ['MY_NS_NAME'] #
+deployment_name = "prime-numbers" #os.environ['MY_DP_NAME'] #
+pod_name = "prime-numbers-8495bc8df7-ghsmx" #os.environ['MY_POD_NAME'] # Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
+app_name = "prime-numbers" #os.environ['MY_APP_NAME'] #
 
 logger = logging.getLogger("VerSca20_operator")
 logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
@@ -42,15 +43,30 @@ def updateStatusResourcesPod(new_pod_data):
     return api_response
 
 
-def createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_lim):
-    #TODO: Search of container index given app name. Not thinking that it is going to be always the container 0
+def createDictContainerResources(container_idx, cpu_req, cpu_lim, curr_rsrc, **kwargs):
+    """
+    Perform vertical scaling of the first container of the first pod in the global variable namespace_name
+    Args:
+        container_idx: Index of the container in the current pod
+        cpu_req: cpu request
+        cpu_lim: cpu limit
+        Optional:
+            mem_req: memory request
+            mem_lim: memory limit
+    Returns:
+        Nothing
+    """
+
+    [current_cpu_req, current_cpu_lim, current_mem_req, current_mem_lim] = curr_rsrc
+
     dict_spec_container_resources = [{
-                                    'op': 'replace', 'path': f'/spec/containers/{container_idx}/resources',
-                                    'value': {
-                                                'limits': {'cpu': f'{cpu_lim}','memory': f'{mem_lim}'},
-                                                'requests': {'cpu': f'{cpu_req}','memory': f'{mem_req}'}
-                                            }
-                                    }]
+            'op': 'replace', 'path': f'/spec/containers/{container_idx}/resources',
+            'value': {
+                        'limits': {'cpu': f'{cpu_lim}','memory': f"{kwargs.get('mem_lim', current_mem_lim)}"},
+                        'requests': {'cpu': f'{cpu_req}','memory': f"{kwargs.get('mem_req', current_mem_req)}"}
+                    }
+        }]
+
     
     return dict_spec_container_resources
 
@@ -84,27 +100,28 @@ def getPod():
     pod_idx = getPodIdx(pods)
     return pods.items[pod_idx]
 
-def verticalScale(cpu_req, cpu_lim, mem_req, mem_lim):
+def verticalScale(cpu_req, cpu_lim, **kwargs):
     """
     Perform vertical scaling of the first container of the first pod in the global variable namespace_name
     Args:
         cpu_req: cpu request
         cpu_lim: cpu limit
-        mem_req: memory request
-        mem_lim: memory limit
+        Optional:
+            mem_req: memory request
+            mem_lim: memory limit
     Returns:
         Nothing
     """
     pod = getPod()
-    #pod_name = pod.metadata.name
     container_idx = getContainerIdx(pod, getAppName())
     # Update pod's spec
-    dict_container_resources = createDictContainerResources(container_idx, cpu_req, cpu_lim, mem_req, mem_lim)
+    curr_rsrc = getContainerResources(pod) # current resources
+    dict_container_resources = createDictContainerResources(container_idx, cpu_req, cpu_lim, curr_rsrc, **kwargs)
     updatePod(dict_container_resources)
-    # Update pod's status
-    #container_status_idx = getContainerStatusIdx(pod, getAppName()) #TODO
-    #dict_container_status_resources = createDictContainerStatusResources(container_status_idx, cpu_req, cpu_lim, mem_req, mem_lim)
-    #updateStatusResourcesPod(dict_container_status_resources)
+
+    mem_req = kwargs.get("mem_req", curr_rsrc[2])
+    mem_lim = kwargs.get("mem_lim", curr_rsrc[3])
+
     logger.info("App container resources modified")
     logger.info(f"New resources: cpu_req: {cpu_req}, cpu_lim: {cpu_lim}, mem_req: {mem_req}, and mem_lim: {mem_lim}")
 
@@ -133,10 +150,17 @@ def getContainerResources(pod):
 
 def isInZeroState(zeroStateDef):
     [cpu_req, cpu_lim, mem_req, mem_lim] = getContainerResources(getPod())
-    if (cpu_req == zeroStateDef.cpu_req and cpu_lim == zeroStateDef.cpu_lim and mem_req == zeroStateDef.mem_req and mem_lim == zeroStateDef.mem_lim):
-        return True
-    else: 
-        return False
+
+    if (hasattr(zeroStateDef, "mem_req") and hasattr(zeroStateDef, "mem_lim")):
+        if (cpu_req == zeroStateDef.cpu_req and cpu_lim == zeroStateDef.cpu_lim and mem_req == zeroStateDef.mem_req and mem_lim == zeroStateDef.mem_lim):
+            return True
+        else: 
+            return False
+    else:
+        if (cpu_req == zeroStateDef.cpu_req and cpu_lim == zeroStateDef.cpu_lim):
+            return True
+        else: 
+            return False
 
 def isContainerReady():
     container_status = getContainerStatus()
@@ -202,3 +226,10 @@ def getPodLabel(label):
 #modifyLabel('autoscaling',"Kosmos")
 #logger.info(f"autoscaling:{getPodLabel('autoscaling')}")
 #pprint(f"autoscaling: {getPodLabel('autoscaling')}")
+
+
+#verticalScale(cpu_req="10m", cpu_lim="10m")
+#verticalScale(cpu_req="250m", cpu_lim="250m")
+#verticalScale(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi")
+#verticalScale(cpu_req="250m", cpu_lim="250m", mem_req="128Mi", mem_lim="128Mi")
+
