@@ -110,6 +110,14 @@ class TheServer:
         #verticalScale(cpu_req, cpu_lim, mem_req, mem_lim)
         verticalScale(cpu_req, cpu_lim)
         #updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
+        ctr = 0
+        # Wait some time till app container is ready
+        while ((isContainerReady() != True)):
+            ctr = ctr+1
+            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
+            time.sleep(self.waiting_time_interval)
+        modifyLabel('autoscaling',"Kosmos")
+        logger.info(self.separator)
 
     def create_timer(self,time):
         return Timer(time,self.vscale_to_zero)
@@ -128,7 +136,7 @@ class TheServer:
         # TODO: Introduce logic that makes use of metrics-server API for the TO zero
         self.input_list.append(self.server)
         self.create_and_start_timer(TIME_SHORT)
-        while 1:
+        while True:
             time.sleep(DELAY)
             ss = select.select
             inputready, outputready, exceptready = ss(self.input_list, [], [])
@@ -137,15 +145,7 @@ class TheServer:
                     # Perform vertical scaling and wait for container is ready before forwarding the request.
                     if isInZeroState(self.zero_state):
                         self.vscale_from_zero()
-                        ctr = 0
-                        # Wait some time till app container is ready
-                        while ((isContainerReady() != True)):
-                            ctr = ctr+1
-                            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
-                            time.sleep(self.waiting_time_interval)
-                        modifyLabel('autoscaling',"Kosmos")
-                        logger.info(self.separator)
-                    self.on_accept() # Attempt to forward the request to the app
+                    self.on_accept() # Attempt to connect client
                     break
 
                 try:
