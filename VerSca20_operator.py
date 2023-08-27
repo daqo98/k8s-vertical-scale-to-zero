@@ -20,10 +20,10 @@ api_core_instance = k8s_client.CoreV1Api()
 api_apps_instance = k8s_client.AppsV1Api()
 pretty = 'pretty_example'
 # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
-namespace_name = "default" #os.environ['MY_NS_NAME'] #
-deployment_name = "prime-numbers" #os.environ['MY_DP_NAME'] #
-pod_name = "prime-numbers-8495bc8df7-ghsmx" #os.environ['MY_POD_NAME'] # Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
-app_name = "prime-numbers" #os.environ['MY_APP_NAME'] #
+namespace_name = os.environ['MY_NS_NAME'] #"default"
+deployment_name = os.environ['MY_DP_NAME'] #"prime-numbers"
+pod_name = os.environ['MY_POD_NAME'] # "prime-numbers-8495bc8df7-ghsmx" Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
+app_name = os.environ['MY_APP_NAME'] #"prime-numbers"
 
 logger = logging.getLogger("VerSca20_operator")
 logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
@@ -39,7 +39,6 @@ def updatePod(new_pod_data):
 
 def updateStatusResourcesPod(new_pod_data):
     api_response = api_core_instance.patch_namespaced_pod_status(name=pod_name, namespace=namespace_name, body=new_pod_data)
-    #pprint(api_response)
     return api_response
 
 
@@ -56,7 +55,6 @@ def createDictContainerResources(container_idx, cpu_req, cpu_lim, curr_rsrc, **k
     Returns:
         Nothing
     """
-
     [current_cpu_req, current_cpu_lim, current_mem_req, current_mem_lim] = curr_rsrc
 
     dict_spec_container_resources = [{
@@ -177,7 +175,6 @@ def getContainerStatus():
     return pod.status.container_statuses[container_status_idx]
 
 def getAppName():
-    # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
     #deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace_name, pretty=pretty)
     #app_name = deployment.spec.template.metadata.labels["app"]
     return app_name
@@ -219,17 +216,4 @@ def getPodLabel(label):
     autoscaling_sys = getPod().metadata.labels[f"{label}"]
     logger.info(f"'{key}: {value}'")
     return autoscaling_sys
-
-#logger.info(f"autoscaling: {getPodLabel('autoscaling')}")
-#pprint(f"autoscaling: {getPodLabel('autoscaling')}")
-#modifyLabel('autoscaling',"VerSca20")
-#modifyLabel('autoscaling',"Kosmos")
-#logger.info(f"autoscaling:{getPodLabel('autoscaling')}")
-#pprint(f"autoscaling: {getPodLabel('autoscaling')}")
-
-
-#verticalScale(cpu_req="10m", cpu_lim="10m")
-#verticalScale(cpu_req="250m", cpu_lim="250m")
-#verticalScale(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi")
-#verticalScale(cpu_req="250m", cpu_lim="250m", mem_req="128Mi", mem_lim="128Mi")
 

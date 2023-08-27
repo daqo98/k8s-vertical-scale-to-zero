@@ -12,7 +12,7 @@ from VerSca20_operator import *
 # Create and configure logger
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG) #, datefmt='%m/%d/%Y %H:%M:%S %z')
 logger = logging.getLogger("sidecar_proxy")
-container_to_forward = "http-metrics" #os.environ['CONTAINER_TO_FORWARD'] #
+container_to_forward = os.environ['CONTAINER_TO_FORWARD'] #"http-metrics" 
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
