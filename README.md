@@ -7,11 +7,12 @@ Sidecar proxy with vertical scaling to/from zero in Kubernetes implemented in Py
 
 ## Pre-requisites
 It is required to have Kubectl v1.27 and a recent version of Kind installed. Personally, I'm using:
-- kind v0.17.0 go1.19.2 windows/amd64
+- kind v0.20.0 go1.20.4 windows/amd64
 - kubectl client version v1.27.4 windows/amd64
 
+# VerSca20
 ## How to test it in Kubernetes?
- 1. Create the Kubernetes cluster: `kind create cluster --name k8s-playground --image=kindest/node:v1.27.3 --config "config/cluster-conf/development-cluster.yaml"`
+ 1. Create the Kubernetes cluster: `kind create cluster --name k8s-playground --image=kindest/node:v1.27.3@sha256:3966ac761ae0136263ffdb6cfd4db23ef8a83cba8a463690e98317add2c9ba72 --config "config/cluster-conf/development-cluster.yaml"`
  2. Install the RBACs: `kubectl apply -f config/permissions`
  3. Deploy the App + Proxy w/. vertical scaling: `kubectl apply -f application/deployment.yaml`
  4. Create service of the app: `kubectl apply -f application/service.yaml`
@@ -23,9 +24,10 @@ It is required to have Kubectl v1.27 and a recent version of Kind installed. Per
 Let's use the `pipenv` module to create a virtual environment, so first install it with `pip install pipenv`.
  1. Install the dependencies of our venv: `pipenv install`
  2. Run the virtual environment: `pipenv shell`
- 3. Run the proxy: `python proxy_scale2zero.py`
- 4. In other tab, follow the steps described in [How to test it in Kubernetes?](https://github.com/daqo98/k8s-vertical-scale-to-zero/tree/main#how-to-test-it-in-kubernetes) but since we're going to use our local proxy and not the one deployed in Kubernetes, do port-forward of the app not the proxy i.e. port 8080:8080 `kubectl port-forward pods/<pod-name> 8080:8080`
- 5. In other tab send the requests `curl http://localhost:80/prime/12`. Our local proxy will forward the request to `localhost:8080` which forwards the request to the prime-numbers app running in Kubernetes.
+ 3. Uncomment the hardcoded values of the variables that use the env vars or set the env vars with the correct value.
+ 4. Run the proxy: `python proxy_scale2zero.py`
+ 5. In other tab, follow the steps described in [How to test it in Kubernetes?](https://github.com/daqo98/k8s-vertical-scale-to-zero/tree/main#how-to-test-it-in-kubernetes) but since we're going to use our local proxy and not the one deployed in Kubernetes, do port-forward of the app not the proxy i.e. port 8080:8080 `kubectl port-forward pods/<pod-name> 8080:8080`
+ 6. In other tab send the requests `curl http://localhost:80/prime/12`. Our local proxy will forward the request to `localhost:8080` which forwards the request to the prime-numbers app running in Kubernetes.
 
 ## Interesting links:
 1. [Sidecar deployment](https://iximiuz.com/en/posts/service-proxy-pod-sidecar-oh-my/)
