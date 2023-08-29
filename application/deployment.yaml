@@ -49,7 +49,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.labels['app']
-          #  
+          - name: CONTAINER_TO_FORWARD
+            value: prime-numbers  
           ports:
             - containerPort: 80
           resources:

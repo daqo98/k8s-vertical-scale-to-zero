@@ -36,7 +36,6 @@ class ResourcesState():
             if (key == "resp_time"): self.resp_time = val
 
 
-
 class Forward:
     def __init__(self):
         self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -94,7 +93,7 @@ class TheServer:
         modifyLabel('autoscaling',"VerSca20")
         ctr = 0
         while not isInZeroState(self.zero_state):
-            #verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim)
+            #verticalScale(cpu_req = self.zero_state.cpu_req, cpu_lim = self.zero_state.cpu_lim, mem_req = self.zero_state.mem_req, mem_lim = self.zero_state.mem_lim)
             verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim)
             ctr = ctr+1
             logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
@@ -107,7 +106,7 @@ class TheServer:
         logger.info("Vertical scale FROM zero")
         [cpu_req, cpu_lim, mem_req, mem_lim] = getDefaultConfigContainer()
         #TODO: Pass default SLA as a dict
-        #verticalScale(cpu_req, cpu_lim, mem_req, mem_lim)
+        #verticalScale(cpu_req = cpu_req, cpu_lim = cpu_lim, mem_req = mem_req, mem_lim = mem_lim)
         verticalScale(cpu_req, cpu_lim)
         #updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
         ctr = 0
