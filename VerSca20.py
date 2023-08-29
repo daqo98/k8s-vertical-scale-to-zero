@@ -115,7 +115,7 @@ class TheServer:
 
     def create_and_start_timer(self,time):
         self.t = self.create_timer(time)
-        #self.t.daemon = True # TODO: Possible way to handle ctrl+C interruption and close proxy w/o sending other request.
+        self.t.daemon = True # TODO: Possible way to handle ctrl+C interruption and close proxy w/o sending other request.
         self.t.start()
 
     def main_loop(self):

@@ -10,12 +10,13 @@ from VerSca20_operator import *
 # Create and configure logger
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG) #, datefmt='%m/%d/%Y %H:%M:%S %z')
 logger = logging.getLogger("sidecar_proxy")
+container_to_forward = os.environ['CONTAINER_TO_FORWARD'] #"prime-numbers"
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
 BUFFERSIZE = 4096
 DELAY = 0.0001
-forward_to = ('127.0.0.1', getContainersPort("prime-numbers")) # Find port number of the service !!!!!!!!!!
+forward_to = ('127.0.0.1', getContainersPort(container_to_forward)) # Find port number of the service !!!!!!!!!!
 PROXY_PORT = 80
 TIME_SHORT = 30.0 # Timer to zeroimport logging
 TIME_LONG = 90.0
@@ -23,12 +24,14 @@ PROXY_ADDR = ('127.0.0.1', PROXY_PORT)
 
 
 class ResourcesState():
-    def __init__(self, cpu_req, cpu_lim, mem_req, mem_lim, resp_time):
+    def __init__(self, cpu_req, cpu_lim, **kwargs):
         self.cpu_req = cpu_req
         self.cpu_lim = cpu_lim
-        self.mem_req = mem_req
-        self.mem_lim = mem_lim
-        self.resp_time = resp_time
+
+        for key, val in kwargs.items():
+            if (key == "mem_req"): self.mem_req = val
+            if (key == "mem_lim"): self.mem_lim = val
+            if (key == "resp_time"): self.resp_time = val
 
 
 class Forward:
@@ -72,7 +75,8 @@ class TheServer:
         self.server.bind((host, port))
         self.server.listen(200)
         # Zero state definition (it must be fine tuned for every app)
-        self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="128Mi", mem_lim="128Mi", resp_time="1000000m")
+        #self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m", mem_req="10Mi", mem_lim="10Mi", resp_time="1000000m")
+        self.zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m")
         self.reqs_in_queue = 0
         self.users_in_sys = 0
         self.clients_req_pending_list = []
@@ -81,7 +85,8 @@ class TheServer:
     def vscale_to_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale TO zero")
-        verticalScale(cpu_req=self.zero_state.cpu_req, cpu_lim=self.zero_state.cpu_lim, mem_req=self.zero_state.mem_req, mem_lim=self.zero_state.mem_lim)
+        #verticalScale(cpu_req = self.zero_state.cpu_req, cpu_lim = self.zero_state.cpu_lim, mem_req = self.zero_state.mem_req, mem_lim = self.zero_state.mem_lim)
+        verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim)
         #updateSLA(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim, self.zero_state.resp_time)
         logger.info(self.separator)
 
@@ -90,8 +95,15 @@ class TheServer:
         logger.info("Vertical scale FROM zero")
         [cpu_req, cpu_lim, mem_req, mem_lim] = getDefaultConfigContainer()
         #TODO: Pass default SLA as a dict
-        verticalScale(cpu_req=cpu_req, cpu_lim=cpu_lim, mem_req=mem_req, mem_lim=mem_lim)
+        #verticalScale(cpu_req = cpu_req, cpu_lim = cpu_lim, mem_req = mem_req, mem_lim = mem_lim)
+        verticalScale(cpu_req, cpu_lim)
         #updateSLA(cpu_req, cpu_lim, mem_req, mem_lim, "100m")
+        ctr = 0
+        # Wait some time till app container is ready
+        while ((isContainerReady() != True)):
+            ctr = ctr+1
+            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
+            time.sleep(self.waiting_time_interval)
         logger.info(self.separator)
 
     def create_timer(self,time):
@@ -99,7 +111,7 @@ class TheServer:
 
     def create_and_start_timer(self,time):
         self.t = self.create_timer(time)
-        #self.t.daemon = True # TODO: Possible way to handle ctrl+C interruption and close proxy w/o sending other request.
+        self.t.daemon = True # TODO: Possible way to handle ctrl+C interruption and close proxy w/o sending other request.
         self.t.start()
 
     def main_loop(self):
@@ -110,19 +122,13 @@ class TheServer:
         """
         # TODO: Introduce logic that makes use of metrics-server API for the TO zero
         self.create_and_start_timer(TIME_SHORT)
-        while 1:
+        while True:
             ss = select.select
             inputready, outputready, exceptready = ss([self.server], [], [])
             for conn_orig in inputready:
                 if conn_orig == self.server:
                     if isInZeroState(self.zero_state):
                         self.vscale_from_zero()
-                        ctr = 0
-                        # Wait some time till app container is ready
-                        while ((isContainerReady() != True)):
-                            ctr = ctr+1
-                            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
-                            time.sleep(self.waiting_time_interval)
                     self.on_accept() # Attempt to forward the request to the app
                     break
     
@@ -133,8 +139,9 @@ class TheServer:
         channel[forward] = clientsock
 
         input_list=[self.server, forward, clientsock]
+        run_thread = True
 
-        while 1:
+        while run_thread:
             time.sleep(DELAY)
             ss = select.select
             inputready, outputready, exceptready = ss(input_list, [], [])
@@ -152,9 +159,10 @@ class TheServer:
                 if len(data.decode()) == 0:
                     logger.debug("Empty buffer!")
                     self.on_close(conn_orig, input_list, channel)
+                    run_thread = False
                     break
                 else:
-                    self.on_recv(conn_orig, input_list, channel, data)
+                    run_thread = self.on_recv(conn_orig, input_list, channel, data)
 
     def on_accept(self):
         forward = Forward().start(forward_to[0], forward_to[1])
@@ -166,7 +174,7 @@ class TheServer:
 
             thr = Thread(target=self.proxy_thread, args=(forward, clientsock))
             thr.start()
-
+            
 
         else:
             logger.info("Can't establish connection with remote server.")
@@ -174,8 +182,8 @@ class TheServer:
             clientsock.close()
 
     def on_close(self, conn_orig, input_list, channel):
-        logger.debug(f'On close of: {current_thread().name} - ID: {get_ident()}')
-        logger.debug(f'Socket on_close: {conn_orig}')
+        #logger.debug(f'On close of: {current_thread().name} - ID: {get_ident()}')
+        #logger.debug(f'Socket on_close: {conn_orig}')
         
         conn_orig_remote = conn_orig.getpeername()
         logger.info(f"{conn_orig.getpeername()} has disconnected")
@@ -201,9 +209,10 @@ class TheServer:
         logger.info(self.separator)
 
     def on_recv(self, conn_orig, input_list, channel, data):
-        logger.debug(f'On recv of: {current_thread().name} - ID: {get_ident()}')
-        logger.debug(f'Socket on_recv: {conn_orig}')
-        logger.debug(f'Channel[Socket] on_recv: {channel[conn_orig]}')
+        #logger.debug(f'On recv of: {current_thread().name} - ID: {get_ident()}')
+        #logger.debug(f'Socket on_recv: {conn_orig}')
+        #logger.debug(f'Channel[Socket] on_recv: {channel[conn_orig]}')
+        run_thread = True
         logger.info(data)
 
         # Connection destination remote address. If req, then app's addr. If resp, then client addr
@@ -241,6 +250,9 @@ class TheServer:
             logger.error("Error caused by socket.send(data)")
             logger.error(e)
             self.on_close(conn_orig, input_list, channel)
+            run_thread = False
+
+        return run_thread
 
     def timer_controlled_by_reqs(self):
         # STATES
@@ -255,4 +267,7 @@ if __name__ == '__main__':
         server.main_loop()
     except KeyboardInterrupt:
         logger.info("Ctrl C - Stopping server")
+        #logger.debug(f'Closing app, currently on thread: {current_thread().name} - ID: {get_ident()}')
+        #logger.debug(f"{active_count()} active threads")
+        #logger.debug(f"List of running threads: {enumerate()}")
         sys.exit(1)
