@@ -12,7 +12,15 @@ release_versca20:
 	else \
 		echo "$(VERSCA20_IMAGE_VERSION) unchanged: no version tag on HEAD commit" ;\
 	fi
-
+release_versca20_threading:
+	@if [ -n "$(VERSCA20_IMAGE_VERSION)" ]; then \
+		echo "Building $(VERSCA20_IMAGE_VERSION)" ;\
+		docker build -t $(REPO)/$(VERSCA20_IMAGE_VERSION) -f Dockerfile_VerSca20_threading.docker . ;\
+		docker push $(REPO)/$(VERSCA20_IMAGE_VERSION) ;\
+	else \
+		echo "$(VERSCA20_IMAGE_VERSION) unchanged: no version tag on HEAD commit" ;\
+	fi
+	
 release_kversca20:
 	
 	@if [ -n "$(KVERSCA20_IMAGE_VERSION)" ]; then \
