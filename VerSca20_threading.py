@@ -129,7 +129,7 @@ class TheServer:
                 if conn_orig == self.server:
                     if isInZeroState(self.zero_state):
                         self.vscale_from_zero()
-                    self.on_accept() # Attempt to forward the request to the app
+                    self.on_accept() # Attempt to connect client
                     break
     
     def proxy_thread(self, forward, clientsock):
