@@ -21,8 +21,8 @@ api_apps_instance = k8s_client.AppsV1Api()
 pretty = 'pretty_example'
 # TODO: Get App name either from a OS/env variable or using Kopf to detect updates on deployments and update the global vars
 namespace_name = os.environ['MY_NS_NAME'] #"default"
-deployment_name = os.environ['MY_DP_NAME'] #"prime-numbers"
-pod_name = os.environ['MY_POD_NAME'] # "prime-numbers-8495bc8df7-ghsmx" Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
+deployment_name = os.environ['MY_DP_NAME'] #"prime-numbers" 
+pod_name = os.environ['MY_POD_NAME'] #"prime-numbers-5bf844868b-kw7cf" # # Copy complete name of the pod e.g. prime-numbers-<pod-template-has>}-{}
 app_name = os.environ['MY_APP_NAME'] #"prime-numbers"
 
 logger = logging.getLogger("VerSca20_operator")
@@ -161,7 +161,8 @@ def isInZeroState(zeroStateDef):
             return False
 
 def isContainerReady():
-    container_status = getContainerStatus()
+    pod = getPod()
+    container_status = getContainerStatus(pod)
     return container_status.ready
 
 def getDefaultConfigContainer():
@@ -169,10 +170,18 @@ def getDefaultConfigContainer():
     pod = deployment.spec.template
     return getContainerResources(pod)
 
-def getContainerStatus():
-    pod = getPod()
+def getContainerStatus(pod):
     container_status_idx = getContainerStatusIdx(pod, getAppName())
     return pod.status.container_statuses[container_status_idx]
+
+def getContainerStatusResources(pod):
+    status_resources = dict()
+    status_resources["resources"] = dict()
+    container_status = getContainerStatus(pod)
+    status_resources["allocated_resources"] = container_status.allocated_resources
+    status_resources["resources"]["limits"] = container_status.resources.limits
+    status_resources["resources"]["requests"] = container_status.resources.requests
+    return status_resources
 
 def getAppName():
     #deployment = api_apps_instance.read_namespaced_deployment(deployment_name, namespace_name, pretty=pretty)
@@ -213,7 +222,7 @@ def modifyLabel(key,value):
     logger.info(f"Label updated: '{key}: {value}'")
 
 def getPodLabel(label):
-    autoscaling_sys = getPod().metadata.labels[f"{label}"]
-    logger.info(f"'{key}: {value}'")
-    return autoscaling_sys
+    value = getPod().metadata.labels[f"{label}"]
+    logger.info(f"'{label}: {value}'")
+    return value
 

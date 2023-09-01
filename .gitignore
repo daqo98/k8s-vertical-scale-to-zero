@@ -1,6 +1,9 @@
 # Miscellaneous
 *.txt
 *.docx
+*.csv
+mnt/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
