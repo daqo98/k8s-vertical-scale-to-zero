@@ -32,4 +32,4 @@ COPY . .
 EXPOSE 80
 
 # Run the application
-ENTRYPOINT ["python", "./KVerSca20.py"]
+ENTRYPOINT ["python", "./KVerSca20_test.py"]

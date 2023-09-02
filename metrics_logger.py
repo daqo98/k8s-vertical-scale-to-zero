@@ -57,9 +57,17 @@ def http_metrics_logger():
     return data
     
 def main():
+    ctr = 0
+    lim_rows_zero_state = 5
     while True:
-        if (getPodLabel('logger') == "on" and not isInZeroState(zero_state)):
+        if (getPodLabel('logger') == "on" and ctr < lim_rows_zero_state):
             k8s_metrics_logger()
+            
+        if isInZeroState(zero_state): 
+            ctr = ctr + 1
+        else: 
+            ctr = 0
+
         time.sleep(1)
 
 if __name__ == '__main__':

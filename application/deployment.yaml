@@ -61,7 +61,7 @@ spec:
             limits:
               memory: 150Mi
               cpu: 250m
-              
+
         - name: metrics-logger
           image: quintero98/metrics-logger:dev
           imagePullPolicy: Always
@@ -81,7 +81,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.labels['app']
           - name: CONTAINER_TO_FORWARD
-            value: http-metrics
+            value: prime-numbers
           resources:
             requests:
               memory: 150Mi

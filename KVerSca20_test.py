@@ -3,7 +3,7 @@ import os
 import sys
 import socket
 import select
-from threading import Timer
+from threading import Timer, Thread
 import time
 
 from KVerSca20_operator import *
@@ -88,17 +88,20 @@ class TheServer:
         self.reqs_per_client = {}
 
         self.to_zero_flag = False
-        self.thr_to_zero = Thread(target=thread_to_zero)
+        self.thr_to_zero = Thread(target=self.thread_to_zero)
+        self.thr_to_zero.start()
 
     def thread_to_zero(self):
         ctr = 0
         while True:
-            if self.thr_to_zero:          
+            if self.to_zero_flag:          
                 if not isInZeroState(self.zero_state):
                     verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim)
                     ctr = ctr+1
                     logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
                     time.sleep(self.waiting_time_interval)
+            else:
+                ctr = 0
 
 
     def vscale_to_zero(self):

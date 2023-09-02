@@ -6,8 +6,9 @@
 !Pipfile.lock
 !KVerSca20.py
 !KVerSca20_operator.py
+!KVerSca20_threading.py
+!KVerSca20_test.py
 !VerSca20.py
 !VerSca20_operator.py
 !VerSca20_threading.py
-!KVerSca20_threading.py
 !metrics_logger.py
