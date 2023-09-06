@@ -35,14 +35,13 @@ echo "export PATH=$PATH:$HOME/.local/bin" >> ~/.bashrc
 source ~/.bashrc
 
 # Install containerd
-sudo su
 wget https://github.com/containerd/containerd/releases/download/v1.7.5/containerd-1.7.5-linux-amd64.tar.gz 
-tar Cxzvf /usr/local containerd-1.7.5-linux-amd64.tar.gz 
+sudo tar Cxzvf /usr/local containerd-1.7.5-linux-amd64.tar.gz 
 wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
-mkdir -p /usr/local/lib/systemd/system
-mv containerd.service /usr/local/lib/systemd/system/containerd.service
-systemctl daemon-reload
-systemctl enable --now containerd
+sudo mkdir -p /usr/local/lib/systemd/system
+sudo mv containerd.service /usr/local/lib/systemd/system/containerd.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now containerd
 
 # Creating conf.toml config file:
 sudo mkdir /etc/containerd
@@ -57,11 +56,13 @@ sudo systemctl restart containerd
 # Install runc
 wget https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64
 install -m 755 runc.amd64 /usr/local/sbin/runc
+rm -f runc.amd64
 
 # Install CNI
 wget https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz
-mkdir -p /opt/cni/bin
-tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.3.0.tgz
+sudo mkdir -p /opt/cni/bin
+sudo tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.3.0.tgz
+rm -f cni-plugins-linux-amd64-v1.3.0.tgz
 
 # Install crictl
 VERSION="v1.27.1" # check latest version in /releases page
@@ -103,14 +104,7 @@ echo "export PATH=$PATH:/snap/bin" >> ~/.bashrc
 source ~/.bashrc
 sudo ln -s /snap/k9s/current/bin/k9s /snap/bin/k9s
 
-
-read -p "Is this the master node? [y,n]" answer
-if [[ $answer = y ]] ; then
-  initKubeAdmCluster
-fi
-
-exit
-
+# Cluster config
 initKubeAdmCluster () {
 # Init kubeAdm cluster
 sudo kubeadm init --config=config/cluster-conf/ec2/kubeadm-cluster.yaml
@@ -122,3 +116,8 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 kubectl apply -f ~/k8s-vertical-scale-to-zero/config/cluster-conf/ec2/kube-flannel.yml
 sudo systemctl restart containerd.service  
 }
+
+read -p "Is this the master node? [y,n]" answer
+if [[ $answer = y ]] ; then
+  initKubeAdmCluster
+fi
