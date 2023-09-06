@@ -50,7 +50,7 @@ sudo mkdir /etc/containerd
 # sudo chmod 666 /etc/containerd/config.toml
 # containerd config default > /etc/containerd/config.toml
 # nano /etc/containerd/config.toml
-wget https://github.com/daqo98/k8s-vertical-scale-to-zero/blob/main/config/cluster-conf/ec2/config.toml
+wget https://raw.githubusercontent.com/daqo98/k8s-vertical-scale-to-zero/main/config/cluster-conf/ec2/config.toml
 sudo mv config.toml /etc/containerd/
 sudo systemctl restart containerd
 
