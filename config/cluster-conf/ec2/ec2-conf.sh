@@ -35,6 +35,7 @@ echo "export PATH=$PATH:$HOME/.local/bin" >> ~/.bashrc
 source ~/.bashrc
 
 # Install containerd
+sudo su
 wget https://github.com/containerd/containerd/releases/download/v1.7.5/containerd-1.7.5-linux-amd64.tar.gz 
 tar Cxzvf /usr/local containerd-1.7.5-linux-amd64.tar.gz 
 wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
@@ -107,6 +108,8 @@ read -p "Is this the master node? [y,n]" answer
 if [[ $answer = y ]] ; then
   initKubeAdmCluster
 fi
+
+exit
 
 initKubeAdmCluster () {
 # Init kubeAdm cluster
