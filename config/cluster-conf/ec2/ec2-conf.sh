@@ -22,8 +22,8 @@ sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 
 # Disable swap for kubelet to work properly: 
-swapoff -a
-sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+sudo swapoff -a
+sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
 # Installing KVerSca20 related files
 cd $HOME
@@ -56,7 +56,7 @@ sudo systemctl restart containerd
 
 # Install runc
 wget https://github.com/opencontainers/runc/releases/download/v1.1.9/runc.amd64
-install -m 755 runc.amd64 /usr/local/sbin/runc
+sudo install -m 755 runc.amd64 /usr/local/sbin/runc
 rm -f runc.amd64
 
 # Install CNI
@@ -115,10 +115,13 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 # Install Flannel as CNI add-on
 kubectl apply -f ~/k8s-vertical-scale-to-zero/config/cluster-conf/ec2/kube-flannel.yml
-sudo systemctl restart containerd.service  
+sudo systemctl restart containerd.service
+
+# Verify node is running
+kubectl get nodes -o wide
 }
 
-read -p "Is this the master node? [y,n]" answer
+read -p "Is this the master node? [y/n]" answer
 if [[ $answer = y ]] ; then
   initKubeAdmCluster
 fi
