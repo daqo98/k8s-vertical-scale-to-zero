@@ -4,7 +4,7 @@ if [[ $answer = y ]] ; then
   # Drain nodes
   for nodename in $(kubectl get nodes | awk '{print $1}')
   do
-    kubectl drain $(nodename) --ignore-daemonsets --delete-emptydir-data --force
+    kubectl drain $nodename --ignore-daemonsets --delete-emptydir-data --force
   done
   # Reset cluster
   sudo kubeadm reset --cri-socket=unix:///var/run/containerd/containerd.sock
