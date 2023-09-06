@@ -42,6 +42,7 @@ sudo mkdir -p /usr/local/lib/systemd/system
 sudo mv containerd.service /usr/local/lib/systemd/system/containerd.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now containerd
+rm -f containerd-1.7.5-linux-amd64.tar.gz
 
 # Creating conf.toml config file:
 sudo mkdir /etc/containerd
@@ -107,9 +108,9 @@ sudo ln -s /snap/k9s/current/bin/k9s /snap/bin/k9s
 # Cluster config
 initKubeAdmCluster () {
 # Init kubeAdm cluster
-sudo kubeadm init --config=config/cluster-conf/ec2/kubeadm-cluster.yaml
-mkdir -p $HOME/.kube &&
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config &&
+sudo kubeadm init --config=$HOME/k8s-vertical-scale-to-zero/config/cluster-conf/ec2/kubeadm-cluster.yaml
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 # Install Flannel as CNI add-on
