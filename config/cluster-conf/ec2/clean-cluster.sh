@@ -23,7 +23,12 @@ fi
 
 sudo rm -rf /etc/kubernetes /var/lib/kubelet /var/lib/etcd /etc/cni/net.d
 
-sudo kill -9 $(ps aux | grep kubelet | grep -v grep| awk '{print $2}')
+# Kill kubelet processes pending
+for kubelet_pid in $(ps aux | grep kubelet | grep -v grep| awk '{print $2}')
+do
+  sudo kill -9 $kubelet_pid
+done
+
 sudo iptables -F
 sudo iptables -t nat -F
 sudo iptables -t mangle -F
