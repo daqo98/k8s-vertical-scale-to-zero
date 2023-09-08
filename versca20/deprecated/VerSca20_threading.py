@@ -1,18 +1,16 @@
 import logging
-import os
 import sys
 import socket
 import select
-from threading import Timer
+from threading import *
 import time
 
-from KVerSca20_operator import *
 from VerSca20_operator import *
 
 # Create and configure logger
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG) #, datefmt='%m/%d/%Y %H:%M:%S %z')
 logger = logging.getLogger("sidecar_proxy")
-container_to_forward = os.environ['CONTAINER_TO_FORWARD'] #"http-metrics" 
+container_to_forward = os.environ['CONTAINER_TO_FORWARD'] #"prime-numbers"
 
 # Changing the buffer_size and delay, you can improve the speed and bandwidth.
 # But when buffer get to high or delay go too down, you can broke things
@@ -68,13 +66,10 @@ class TheServer:
     """
     
 
-    input_list = []
-    channel = {}
     waiting_time_interval = 1 # in seconds
     separator = "____________________________________________________________________________________________________"
 
     def __init__(self, host, port):
-        self.conn_orig = None
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
@@ -90,14 +85,8 @@ class TheServer:
     def vscale_to_zero(self):
         logger.info(self.separator)
         logger.info("Vertical scale TO zero")
-        modifyLabel('autoscaling',"VerSca20")
-        ctr = 0
-        while not isInZeroState(self.zero_state):
-            #verticalScale(cpu_req = self.zero_state.cpu_req, cpu_lim = self.zero_state.cpu_lim, mem_req = self.zero_state.mem_req, mem_lim = self.zero_state.mem_lim)
-            verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim)
-            ctr = ctr+1
-            logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
-            time.sleep(self.waiting_time_interval)
+        #verticalScale(cpu_req = self.zero_state.cpu_req, cpu_lim = self.zero_state.cpu_lim, mem_req = self.zero_state.mem_req, mem_lim = self.zero_state.mem_lim)
+        verticalScale(self.zero_state.cpu_req, self.zero_state.cpu_lim)
         #updateSLA(self.zero_state.cpu_req, self.zero_state.cpu_lim, self.zero_state.mem_req, self.zero_state.mem_lim, self.zero_state.resp_time)
         logger.info(self.separator)
 
@@ -115,7 +104,6 @@ class TheServer:
             ctr = ctr+1
             logger.info(f"Cycle of {self.waiting_time_interval} secs #: {ctr}")
             time.sleep(self.waiting_time_interval)
-        modifyLabel('autoscaling',"Kosmos")
         logger.info(self.separator)
 
     def create_timer(self,time):
@@ -133,34 +121,48 @@ class TheServer:
         Returns: Nothing
         """
         # TODO: Introduce logic that makes use of metrics-server API for the TO zero
-        self.input_list.append(self.server)
         self.create_and_start_timer(TIME_SHORT)
         while True:
-            time.sleep(DELAY)
             ss = select.select
-            inputready, outputready, exceptready = ss(self.input_list, [], [])
-            for self.conn_orig in inputready:
-                if self.conn_orig == self.server:
-                    # Perform vertical scaling and wait for container is ready before forwarding the request.
+            inputready, outputready, exceptready = ss([self.server], [], [])
+            for conn_orig in inputready:
+                if conn_orig == self.server:
                     if isInZeroState(self.zero_state):
                         self.vscale_from_zero()
                     self.on_accept() # Attempt to connect client
                     break
+    
+    def proxy_thread(self, forward, clientsock):
+        logger.info(f'{current_thread().name} - ID: {get_ident()}')
+        channel = {}
+        channel[clientsock] = forward
+        channel[forward] = clientsock
 
+        input_list=[self.server, forward, clientsock]
+        run_thread = True
+
+        while run_thread:
+            time.sleep(DELAY)
+            ss = select.select
+            inputready, outputready, exceptready = ss(input_list, [], [])
+            for conn_orig in inputready:
+                if conn_orig == self.server:
+                    break
                 try:
-                    self.data = self.conn_orig.recv(BUFFERSIZE)
+                    data = conn_orig.recv(BUFFERSIZE)
                 except Exception as e:
                     logger.error("Error caused by socket.recv(BUFFERSIZE)")
                     logger.error(e)
                     #break
 
                 # Close connection when no more data is in buffer
-                if len(self.data.decode()) == 0:
+                if len(data.decode()) == 0:
                     logger.debug("Empty buffer!")
-                    self.on_close()
+                    self.on_close(conn_orig, input_list, channel)
+                    run_thread = False
                     break
                 else:
-                    self.on_recv()
+                    run_thread = self.on_recv(conn_orig, input_list, channel, data)
 
     def on_accept(self):
         forward = Forward().start(forward_to[0], forward_to[1])
@@ -170,18 +172,21 @@ class TheServer:
             logger.info(self.separator)
             logger.info(f"{clientaddr} has connected")
 
-            self.input_list.append(clientsock)
-            self.input_list.append(forward)
-            self.channel[clientsock] = forward
-            self.channel[forward] = clientsock
+            thr = Thread(target=self.proxy_thread, args=(forward, clientsock))
+            thr.start()
+            
+
         else:
             logger.info("Can't establish connection with remote server.")
             logger.info(f"Closing connection with client side {clientaddr}")
             clientsock.close()
 
-    def on_close(self):
-        conn_orig_remote = self.conn_orig.getpeername()
-        logger.info(f"{self.conn_orig.getpeername()} has disconnected")
+    def on_close(self, conn_orig, input_list, channel):
+        #logger.debug(f'On close of: {current_thread().name} - ID: {get_ident()}')
+        #logger.debug(f'Socket on_close: {conn_orig}')
+        
+        conn_orig_remote = conn_orig.getpeername()
+        logger.info(f"{conn_orig.getpeername()} has disconnected")
                 
         if conn_orig_remote in self.clients_req_pending_list:
             logger.info("Client disconnected had pending requests")
@@ -191,30 +196,33 @@ class TheServer:
             self.timer_controlled_by_reqs()
 
         # remove objects from input_list
-        self.input_list.remove(self.conn_orig)
-        self.input_list.remove(self.channel[self.conn_orig])
-        out = self.channel[self.conn_orig]
+        input_list.remove(conn_orig)
+        input_list.remove(channel[conn_orig])
+        out = channel[conn_orig]
         # close the connection with client
-        self.channel[out].close()  # equivalent to do self.conn_orig.close()
+        channel[out].close()  # equivalent to do self.conn_orig.close()
         # close the connection with remote server
-        self.channel[self.conn_orig].close()
+        channel[conn_orig].close()
         # delete both objects from channel dict
-        del self.channel[out]
-        del self.channel[self.conn_orig]
+        del channel[out]
+        del channel[conn_orig]
         logger.info(self.separator)
 
-    def on_recv(self):
-        data = self.data
+    def on_recv(self, conn_orig, input_list, channel, data):
+        #logger.debug(f'On recv of: {current_thread().name} - ID: {get_ident()}')
+        #logger.debug(f'Socket on_recv: {conn_orig}')
+        #logger.debug(f'Channel[Socket] on_recv: {channel[conn_orig]}')
+        run_thread = True
         logger.info(data)
 
         # Connection destination remote address. If req, then app's addr. If resp, then client addr
-        conn_dst_remote = self.channel[self.conn_orig].getpeername()
+        conn_dst_remote = channel[conn_orig].getpeername()
         # Connection destination local address. If req, then random port assigned to proxy. If resp, then PROXY_ADDR
-        conn_dst_local =  self.channel[self.conn_orig].getsockname()
+        conn_dst_local =  channel[conn_orig].getsockname()
         # Connection origin local address. If req, then PROXY_ADDR. If resp, then random port assigned to proxy
-        conn_orig_local = self.conn_orig.getsockname()
+        conn_orig_local = conn_orig.getsockname()
         # Connection origin remote address. If req, then client addr. If resp, then app's addr
-        conn_orig_remote = self.conn_orig.getpeername()
+        conn_orig_remote = conn_orig.getpeername()
 
         # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
@@ -237,11 +245,14 @@ class TheServer:
         self.timer_controlled_by_reqs()
         
         try:
-            self.channel[self.conn_orig].send(data)
+            channel[conn_orig].send(data)
         except Exception as e:
             logger.error("Error caused by socket.send(data)")
             logger.error(e)
-            self.on_close()
+            self.on_close(conn_orig, input_list, channel)
+            run_thread = False
+
+        return run_thread
 
     def timer_controlled_by_reqs(self):
         # STATES
@@ -256,4 +267,7 @@ if __name__ == '__main__':
         server.main_loop()
     except KeyboardInterrupt:
         logger.info("Ctrl C - Stopping server")
+        #logger.debug(f'Closing app, currently on thread: {current_thread().name} - ID: {get_ident()}')
+        #logger.debug(f"{active_count()} active threads")
+        #logger.debug(f"List of running threads: {enumerate()}")
         sys.exit(1)

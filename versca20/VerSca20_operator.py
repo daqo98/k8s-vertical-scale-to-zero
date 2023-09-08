@@ -28,6 +28,16 @@ app_name = os.environ['MY_APP_NAME'] #"prime-numbers"
 logger = logging.getLogger("VerSca20_operator")
 logging.getLogger("kubernetes.client.rest").setLevel(logging.ERROR)
 
+class ResourcesState():
+    def __init__(self, cpu_req, cpu_lim, **kwargs):
+        self.cpu_req = cpu_req
+        self.cpu_lim = cpu_lim
+
+        for key, val in kwargs.items():
+            if (key == "mem_req"): self.mem_req = val
+            if (key == "mem_lim"): self.mem_lim = val
+            if (key == "resp_time"): self.resp_time = val
+
 def handlingException(api_call):
     try: 
         return(api_call)

@@ -6,7 +6,6 @@ import datetime
 import csv
 import time
 import sys
-from KVerSca20 import ResourcesState
  
 # pod_name = os.environ['MY_POD_NAME'] #"prime-numbers-5bf844868b-kw7cf" # Already declared in VerSca20_operator
 zero_state = ResourcesState(cpu_req="10m", cpu_lim="10m")
@@ -19,7 +18,6 @@ def k8s_metrics_logger():
  
     [cpu_req, cpu_lim, mem_req, mem_lim] = getContainerResources(pod) #spec
     container_status_resources = getContainerStatusResources(pod) #status
-    http_metrics = http_metrics_logger()
 
     metrics = dict()
     metrics["timestamp"] = str(datetime.datetime.now())
@@ -28,9 +26,14 @@ def k8s_metrics_logger():
     metrics["status_alloc_cpu"] = container_status_resources["allocated_resources"]["cpu"]
     metrics["status_req_cpu"] = container_status_resources["resources"]["requests"]["cpu"]
     metrics["status_lim_cpu"] = container_status_resources["resources"]["limits"]["cpu"]
-    metrics["response_time"] = http_metrics['response_time']
-    metrics["request_count"] = http_metrics['request_count']
-    metrics["throughput"] = http_metrics['throughput']
+
+    container_name = "http-metrics"
+    for idx, container in enumerate(pod.spec.containers):
+        if container.name == container_name:
+            http_metrics = http_metrics_logger()
+            metrics["response_time"] = http_metrics['response_time']
+            metrics["request_count"] = http_metrics['request_count']
+            metrics["throughput"] = http_metrics['throughput']
 
     currentDir = os.path.dirname(__file__)
     absolutePath = os.path.join(currentDir, "data") #"mnt/data"
@@ -77,5 +80,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         logger.info("Ctrl C - Stopping server")
         sys.exit(1)
-
-#pprint(container_status_resources) #status
