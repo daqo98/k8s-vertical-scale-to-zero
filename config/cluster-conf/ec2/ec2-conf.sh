@@ -27,8 +27,8 @@ sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
 # Installing KVerSca20 related files
 cd $HOME
-git clone https://github.com/daqo98/k8s-vertical-scale-to-zero.git
-git clone https://github.com/daqo98/kosmos-v2.git
+git clone https://github.com/daqo98/versca20.git
+git clone https://github.com/daqo98/kversca20.git
 sudo apt install -y pip
 pip install pipenv
 echo "export PATH=$PATH:$HOME/.local/bin" >> ~/.bashrc
@@ -50,7 +50,7 @@ sudo mkdir /etc/containerd
 # sudo chmod 666 /etc/containerd/config.toml
 # containerd config default > /etc/containerd/config.toml
 # nano /etc/containerd/config.toml
-wget https://raw.githubusercontent.com/daqo98/k8s-vertical-scale-to-zero/main/config/cluster-conf/ec2/config.toml
+wget https://raw.githubusercontent.com/daqo98/versca20/main/config/cluster-conf/ec2/config.toml
 sudo mv config.toml /etc/containerd/
 sudo systemctl restart containerd
 
