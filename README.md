@@ -1,4 +1,4 @@
-# k8s-vertical-scale-to-zero
+# Vertical Scale to Zero (VerSca20)
 Sidecar proxy with vertical scaling to/from zero in Kubernetes implemented in Python. By making use of the sidecar pattern, we will deploy an app and a proxy in two different containers but in the same pod. The requests directed to the pod will be received by the proxy which in turn forwards them to the app but also decides whether to vertical scale the pod or not.
 
 ## Logic behind the proxy w/ vertical scaling:
