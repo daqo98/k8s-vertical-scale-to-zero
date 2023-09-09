@@ -7,7 +7,7 @@ class UserTasks(TaskSet):
     def get_root(self):
         # replace with the URL of your server
         #self.client.get("http://localhost:80/prime/12")
-        self.client.get("http://34.254.192.198:31512/prime/12")
+        self.client.get("http://52.16.96.184:31512/prime/12")
         
 
 
