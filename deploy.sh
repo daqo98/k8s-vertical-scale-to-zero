@@ -17,7 +17,7 @@ kubectl taint nodes --all  node-role.kubernetes.io/control-plane-
 kubectl apply -f "application/deployment.yaml"
 kubectl apply -f "application/service.yaml"
 
-kubectl port-forward service/prime-numbers 8080:80
+# kubectl port-forward service/prime-numbers 8080:80
 # kubectl port-forward service/http-metrics 8000:8000
 # Try a request: curl http://localhost:8080/prime/12 or curl http://<Node's_Public_IP>:31512/prime/12
 ## Locust workload: 
