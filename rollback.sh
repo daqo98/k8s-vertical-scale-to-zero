@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # Deleting old resources
-read -p "Choose the configuration to delete:" answer
+echo "Choose the configuration to delete:"
 echo "1. App"
 echo "2. App + HPA"
 echo "3. App + VerSca20"
 echo "4. App + VerSca20 + HPA"
+read -p "Choice: " answer
+
 
 if [[ $answer = 1 ]]; then
     kubectl delete -f "app_alone"

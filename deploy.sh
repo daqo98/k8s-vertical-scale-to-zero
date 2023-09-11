@@ -11,11 +11,12 @@ kubectl taint nodes --all node-role.kubernetes.io/master-
 kubectl taint nodes --all  node-role.kubernetes.io/control-plane-
 
 # Deploy app
-read -p "Choose the configuration to deploy:" answer
+echo "Choose the configuration to deploy:"
 echo "1. App"
 echo "2. App + HPA"
 echo "3. App + VerSca20"
 echo "4. App + VerSca20 + HPA"
+read -p "Choice: " answer
 
 if [[ $answer = 1 ]]; then
     kubectl apply -f "app_alone"

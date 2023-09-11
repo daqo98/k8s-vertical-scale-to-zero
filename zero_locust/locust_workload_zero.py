@@ -64,6 +64,7 @@ class UserTasks(TaskSet):
         # In-cluster
         #self.client.post(f"http://{function_name}.default.svc.cluster.local:80/function/{function_name}", json=json_data[function_name])
         # Outside cluster
+        #self.client.post(f"http://<Public_IP_Address>:{function_port}/function/{function_name}", json=json_data[function_name])
         self.client.post(f"http://localhost:{function_port}/function/{function_name}", json=json_data[function_name])
 
 
