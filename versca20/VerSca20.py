@@ -21,6 +21,7 @@ forward_to = ('127.0.0.1', getContainersPort(container_to_forward)) # Find port 
 PROXY_PORT = 80
 TIME_SHORT = 30.0 # Timer to zeroimport logging
 TIME_LONG = 90.0
+HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
 INTERNAL_PROXY_ADDR = ('127.0.0.1', PROXY_PORT)
 
 # Get the local host name
@@ -223,7 +224,7 @@ class TheServer:
         # TRANSITIONS
         # Socket obj: For laddr use mySocket.getsockname() and for raddr use mySocket.getpeername()
         # Proxy receiving GET request
-        if ((conn_dst_remote == forward_to) and ("GET" in data.decode())):
+        if ((conn_dst_remote == forward_to) and (any(m in data.decode() for m in HTTP_METHODS))):
             self.reqs_in_queue = self.reqs_in_queue + 1
             if conn_orig_remote not in self.reqs_per_client:
                 self.reqs_per_client[conn_orig_remote] = 1

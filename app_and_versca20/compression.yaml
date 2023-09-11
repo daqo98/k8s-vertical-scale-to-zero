@@ -64,7 +64,7 @@ spec:
               memory: 128Mi
               cpu: 250m
         - name: proxy-vertical-scaling
-          image: quintero98/proxy-vertical-scaling:v7 #v0.1_threading #nginx:1.25.1
+          image: quintero98/proxy-vertical-scaling:v8 #v0.1_threading #nginx:1.25.1
           imagePullPolicy: Always
           env:
           - name: MY_POD_NAME
