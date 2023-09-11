@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Install Custom Resource Definitions (CRDs)
-kubectl apply -f "config/crd/bases"
-
 # Install RBACs
 kubectl apply -f "config/permissions"
 
@@ -14,8 +11,24 @@ kubectl taint nodes --all node-role.kubernetes.io/master-
 kubectl taint nodes --all  node-role.kubernetes.io/control-plane-
 
 # Deploy app
-kubectl apply -f "application/deployment.yaml"
-kubectl apply -f "application/service.yaml"
+read -p "Choose the configuration to deploy:" answer
+echo "1. App"
+echo "2. App + HPA"
+echo "3. App + VerSca20"
+echo "4. App + VerSca20 + HPA"
+
+if [[ $answer = 1 ]]; then
+    kubectl apply -f "app_alone"
+elif [[ $answer = 2 ]]; then
+    kubectl apply -f "app_and_HPA"
+elif [[ $answer = 3 ]]; then
+    kubectl apply -f "app_and_versca20"
+elif [[ $answer = 4 ]]; then
+    kubectl apply -f "app_and_versca20_and_HPA"
+else
+     echo "Run again the script and choose one of the options"
+fi
+
 
 # kubectl port-forward service/prime-numbers 8080:80
 # kubectl port-forward service/http-metrics 8000:8000
