@@ -38,10 +38,10 @@ spec:
               restartPolicy: NotRequired
           resources:
             requests:
-              memory: 128Mi
+              memory: 500Mi
               cpu: 250m
             limits:
-              memory: 128Mi
+              memory: 500Mi
               cpu: 250m
         - name: http-metrics
           image: systemautoscaler/http-metrics:0.1.0
